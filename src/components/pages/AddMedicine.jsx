@@ -1,15 +1,19 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
 import InputField from '../ui/InputField'
+import { medicinesAPI } from '../../services/api'
 import { Upload, Save, X, Package } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 export default function AddMedicine() {
+  const navigate = useNavigate()
   const [formData, setFormData] = useState({
     name: '',
     buyingPrice: '',
     sellingPrice: '',
-    quantity: '',
+    stock: '',
     expiryDate: '',
     manufacturer: '',
     description: '',
@@ -56,8 +60,8 @@ export default function AddMedicine() {
       newErrors.sellingPrice = 'Valid selling price is required'
     }
 
-    if (!formData.quantity || parseInt(formData.quantity) <= 0) {
-      newErrors.quantity = 'Valid quantity is required'
+    if (!formData.stock || parseInt(formData.stock) < 0) {
+      newErrors.stock = 'Valid quantity is required'
     }
 
     if (!formData.expiryDate) {
@@ -77,33 +81,22 @@ export default function AddMedicine() {
 
     setIsSubmitting(true)
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    // Success simulation
-    console.log('Medicine data:', {
-      ...formData,
-      id: `MED${Date.now().toString().slice(-6)}`,
-      image: imagePreview
-    })
-
-    setIsSubmitting(false)
-    
-    // Reset form
-    setFormData({
-      name: '',
-      buyingPrice: '',
-      sellingPrice: '',
-      quantity: '',
-      expiryDate: '',
-      manufacturer: '',
-      description: '',
-      category: ''
-    })
-    setImagePreview(null)
-
-    // Show success message
-    alert('Medicine added successfully!')
+    try {
+      await medicinesAPI.create({
+        ...formData,
+        buyingPrice: parseFloat(formData.buyingPrice),
+        sellingPrice: parseFloat(formData.sellingPrice),
+        stock: parseInt(formData.stock),
+        image: imagePreview
+      })
+      
+      toast.success('Medicine added successfully!')
+      navigate('/inventory')
+    } catch (error) {
+      toast.error(error.message || 'Failed to add medicine')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleChange = (e) => {
@@ -124,26 +117,9 @@ export default function AddMedicine() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Add New Medicine</h1>
-          <p className="text-gray-600">Add medicine to inventory</p>
-        </div>
-        <div className="flex space-x-3">
-          <Button variant="outline" size="md" href="/inventory">
-            <X className="w-4 h-4 mr-2" />
-            Cancel
-          </Button>
-          <Button 
-            variant="primary" 
-            size="md" 
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-          >
-            <Save className="w-4 h-4 mr-2" />
-            {isSubmitting ? 'Saving...' : 'Save Medicine'}
-          </Button>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Add New Medicine</h1>
+        <p className="text-gray-600">Add medicine to inventory</p>
       </div>
 
       {/* Medicine Form */}
@@ -189,12 +165,6 @@ export default function AddMedicine() {
                 </div>
               )}
             </div>
-
-            <div className="bg-blue-50 rounded-lg p-4">
-              <p className="text-sm text-blue-700">
-                <strong>Tip:</strong> Upload a clear image of the medicine packaging for easy identification.
-              </p>
-            </div>
           </div>
         </Card>
 
@@ -238,11 +208,11 @@ export default function AddMedicine() {
             <InputField
               label="Quantity"
               type="number"
-              name="quantity"
-              value={formData.quantity}
+              name="stock"
+              value={formData.stock}
               onChange={handleChange}
               placeholder="0"
-              error={errors.quantity}
+              error={errors.stock}
             />
 
             <InputField

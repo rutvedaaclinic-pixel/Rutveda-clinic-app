@@ -1,4 +1,5 @@
 import React from 'react'
+import { Link } from 'react-router-dom'
 
 export default function Button({ 
   children, 
@@ -8,9 +9,10 @@ export default function Button({
   type = 'button',
   disabled = false,
   className = '',
+  href,
   ...props 
 }) {
-  const baseClasses = 'font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
+  const baseClasses = 'font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center'
   
   const variantClasses = {
     primary: 'bg-blue-500 text-white hover:bg-blue-700 focus:ring-blue-500 focus:ring-offset-2',
@@ -26,12 +28,28 @@ export default function Button({
     lg: 'px-6 py-3 text-base'
   }
 
+  const combinedClasses = `${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`
+
+  // If href is provided, render as Link
+  if (href) {
+    return (
+      <Link
+        to={href}
+        className={combinedClasses}
+        {...props}
+      >
+        {children}
+      </Link>
+    )
+  }
+
+  // Otherwise render as button
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+      className={combinedClasses}
       {...props}
     >
       {children}

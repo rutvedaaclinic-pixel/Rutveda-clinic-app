@@ -1,12 +1,15 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
 import InputField from '../ui/InputField'
 import SelectField from '../ui/SelectField'
-import { mockPatients } from '../../context/data/patients'
+import { patientsAPI } from '../../services/api'
 import { UserPlus, Save, X } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 export default function AddPatient() {
+  const navigate = useNavigate()
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -37,13 +40,6 @@ export default function AddPatient() {
     { value: 'O+', label: 'O+' },
     { value: 'O-', label: 'O-' }
   ]
-
-  const generatePatientId = () => {
-    const lastPatient = mockPatients[mockPatients.length - 1]
-    const lastId = lastPatient ? parseInt(lastPatient.id.replace('DOC', '')) : 0
-    const newId = `DOC${String(lastId + 1).padStart(3, '0')}`
-    return newId
-  }
 
   const validateForm = () => {
     const newErrors = {}
@@ -81,33 +77,19 @@ export default function AddPatient() {
 
     setIsSubmitting(true)
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    // Success simulation
-    console.log('Patient data:', {
-      ...formData,
-      id: generatePatientId(),
-      lastVisit: new Date().toISOString().split('T')[0],
-      status: 'Active'
-    })
-
-    setIsSubmitting(false)
-    
-    // Reset form
-    setFormData({
-      name: '',
-      phone: '',
-      age: '',
-      gender: '',
-      address: '',
-      email: '',
-      bloodGroup: '',
-      medicalHistory: ''
-    })
-
-    // Show success message (in real app, use toast notification)
-    alert('Patient added successfully!')
+    try {
+      const response = await patientsAPI.create({
+        ...formData,
+        age: parseInt(formData.age)
+      })
+      
+      toast.success('Patient added successfully!')
+      navigate('/patients')
+    } catch (error) {
+      toast.error(error.message || 'Failed to add patient')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleChange = (e) => {
@@ -129,26 +111,9 @@ export default function AddPatient() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Add New Patient</h1>
-          <p className="text-gray-600">Fill in the patient information below</p>
-        </div>
-        <div className="flex space-x-3">
-          <Button variant="outline" size="md" href="/patients">
-            <X className="w-4 h-4 mr-2" />
-            Cancel
-          </Button>
-          <Button 
-            variant="primary" 
-            size="md" 
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-          >
-            <Save className="w-4 h-4 mr-2" />
-            {isSubmitting ? 'Saving...' : 'Save Patient'}
-          </Button>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Add New Patient</h1>
+        <p className="text-gray-600">Fill in the patient information below</p>
       </div>
 
       {/* Patient Information Form */}
@@ -195,7 +160,7 @@ export default function AddPatient() {
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
-                placeholder="+1 (555) 123-4567"
+                placeholder="+91 9876543210"
                 error={errors.phone}
                 className="mt-4"
               />
@@ -247,8 +212,7 @@ export default function AddPatient() {
                 </div>
               </div>
               <div className="bg-white border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                <p className="text-2xl font-bold text-gray-900">{generatePatientId()}</p>
-                <p className="text-sm text-gray-500 mt-1">Patient ID will be assigned automatically</p>
+                <p className="text-sm text-gray-500">Patient ID will be assigned automatically</p>
               </div>
             </div>
 

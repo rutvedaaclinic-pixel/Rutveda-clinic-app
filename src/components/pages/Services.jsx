@@ -1,10 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
 import InputField from '../ui/InputField'
 import Table from '../ui/Table'
 import Modal from '../ui/Modal'
-import { mockServices } from '../../context/data/patients'
+import { servicesAPI } from '../../services/api'
 import { 
   Plus, 
   Edit, 
@@ -12,11 +12,14 @@ import {
   Stethoscope,
   DollarSign,
   Clock,
-  Search
+  Search,
+  RefreshCw
 } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 export default function Services() {
-  const [services, setServices] = useState(mockServices)
+  const [loading, setLoading] = useState(true)
+  const [services, setServices] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingService, setEditingService] = useState(null)
@@ -27,9 +30,29 @@ export default function Services() {
     description: ''
   })
 
-  const filteredServices = services.filter(service =>
-    service.name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const fetchServices = async () => {
+    try {
+      setLoading(true)
+      const params = searchQuery ? `?search=${searchQuery}` : ''
+      const data = await servicesAPI.getAll(params)
+      setServices(data.data)
+    } catch (error) {
+      console.error('Error fetching services:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchServices()
+  }, [])
+
+  useEffect(() => {
+    const debounce = setTimeout(() => {
+      if (searchQuery !== '') fetchServices()
+    }, 500)
+    return () => clearTimeout(debounce)
+  }, [searchQuery])
 
   const handleOpenModal = (service = null) => {
     if (service) {
@@ -53,38 +76,56 @@ export default function Services() {
     setFormData({ name: '', price: '', duration: '', description: '' })
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     
     if (!formData.name || !formData.price) return
 
-    if (editingService) {
-      setServices(prev => prev.map(s => 
-        s.id === editingService.id 
-          ? { ...s, name: formData.name, price: parseFloat(formData.price), duration: formData.duration, description: formData.description }
-          : s
-      ))
-    } else {
-      const newService = {
-        id: `SER${String(services.length + 1).padStart(3, '0')}`,
-        name: formData.name,
-        price: parseFloat(formData.price),
-        duration: formData.duration,
-        description: formData.description
+    try {
+      if (editingService) {
+        await servicesAPI.update(editingService._id, {
+          ...formData,
+          price: parseFloat(formData.price)
+        })
+        toast.success('Service updated successfully')
+      } else {
+        await servicesAPI.create({
+          ...formData,
+          price: parseFloat(formData.price)
+        })
+        toast.success('Service added successfully')
       }
-      setServices(prev => [...prev, newService])
+      handleCloseModal()
+      fetchServices()
+    } catch (error) {
+      toast.error(error.message)
     }
-
-    handleCloseModal()
   }
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this service?')) {
-      setServices(prev => prev.filter(s => s.id !== id))
+      try {
+        await servicesAPI.delete(id)
+        toast.success('Service deleted successfully')
+        fetchServices()
+      } catch (error) {
+        toast.error(error.message)
+      }
     }
   }
 
   const totalValue = services.reduce((sum, s) => sum + s.price, 0)
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <RefreshCw className="w-8 h-8 text-medical-blue animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading services...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -94,10 +135,16 @@ export default function Services() {
           <h1 className="text-2xl font-bold text-gray-900">Services</h1>
           <p className="text-gray-600">Manage clinic services and pricing</p>
         </div>
-        <Button variant="primary" size="md" onClick={() => handleOpenModal()}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Service
-        </Button>
+        <div className="flex space-x-3">
+          <Button variant="outline" size="md" onClick={fetchServices}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+          <Button variant="primary" size="md" onClick={() => handleOpenModal()}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Service
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -152,71 +199,67 @@ export default function Services() {
 
       {/* Services Table */}
       <Card>
-        <div className="overflow-x-auto">
-          <Table
-            headers={['Service ID', 'Service Name', 'Price', 'Duration', 'Actions']}
-          >
-            {filteredServices.map((service) => (
-              <tr key={service.id} className="table-row">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="w-10 h-10 bg-blue-500 bg-opacity-10 rounded-lg flex items-center justify-center mr-3">
-                      <Stethoscope className="w-5 h-5 text-blue-500" />
-                    </div>
-                    <div>
-                      <div className="font-medium text-gray-900">{service.id}</div>
-                      <div className="text-sm text-gray-500">Service</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="font-medium text-gray-900">{service.name}</div>
-                  {service.description && (
-                    <div className="text-sm text-gray-500">{service.description}</div>
-                  )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-lg font-semibold text-gray-900">₹{service.price}</span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                  {service.duration || 'N/A'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => handleOpenModal(service)}
-                    className="flex items-center space-x-2"
-                  >
-                    <Edit className="w-4 h-4" />
-                    <span>Edit</span>
-                  </Button>
-                  <Button 
-                    variant="danger" 
-                    size="sm" 
-                    onClick={() => handleDelete(service.id)}
-                    className="flex items-center space-x-2"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    <span>Delete</span>
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </Table>
-        </div>
-
-        {filteredServices.length === 0 && (
+        {services.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Stethoscope className="w-8 h-8 text-gray-400" />
             </div>
             <h3 className="text-sm font-medium text-gray-900 mb-2">No services found</h3>
-            <p className="text-sm text-gray-500">Add your first service to get started.</p>
-            <Button variant="primary" size="sm" onClick={() => handleOpenModal()} className="mt-4">
+            <p className="text-sm text-gray-500 mb-4">Add your first service to get started.</p>
+            <Button variant="primary" size="md" onClick={() => handleOpenModal()}>
               <Plus className="w-4 h-4 mr-2" />
               Add Service
             </Button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table headers={['Service ID', 'Service Name', 'Price', 'Duration', 'Actions']}>
+              {services.map((service) => (
+                <tr key={service._id} className="table-row">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="w-10 h-10 bg-blue-500 bg-opacity-10 rounded-lg flex items-center justify-center mr-3">
+                        <Stethoscope className="w-5 h-5 text-blue-500" />
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900">{service.serviceId}</div>
+                        <div className="text-sm text-gray-500">Service</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="font-medium text-gray-900">{service.name}</div>
+                    {service.description && (
+                      <div className="text-sm text-gray-500">{service.description}</div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="text-lg font-semibold text-gray-900">₹{service.price}</span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {service.duration || 'N/A'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleOpenModal(service)}
+                    >
+                      <Edit className="w-4 h-4 mr-1" />
+                      Edit
+                    </Button>
+                    <Button 
+                      variant="danger" 
+                      size="sm" 
+                      onClick={() => handleDelete(service._id)}
+                    >
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      Delete
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </Table>
           </div>
         )}
       </Card>

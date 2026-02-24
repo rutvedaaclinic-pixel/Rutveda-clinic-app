@@ -1,16 +1,14 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Card from '../ui/Card'
-import Button from '../ui/Button'
 import ChartCard from '../ui/ChartCard'
-import { mockPatients, mockMedicines, mockServices, mockBills } from '../../context/data/patients'
+import Button from '../ui/Button'
+import { analyticsAPI } from '../../services/api'
 import { 
-  BarChart3,
   TrendingUp,
-  TrendingDown,
-  Users,
   DollarSign,
-  Pill,
-  Stethoscope
+  Users,
+  Calendar,
+  RefreshCw
 } from 'lucide-react'
 import { 
   BarChart, 
@@ -20,331 +18,259 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
   LineChart,
   Line,
-  Area,
-  AreaChart
+  PieChart as RechartsPie,
+  Pie,
+  Cell,
+  Legend
 } from 'recharts'
 
+const COLORS = ['#2563EB', '#10B981', '#8B5CF6', '#F59E0B']
+
 export default function Analytics() {
-  const [timePeriod, setTimePeriod] = useState('daily')
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [performance, setPerformance] = useState({})
+  const [monthlyGrowth, setMonthlyGrowth] = useState([])
+  const [revenueSplit, setRevenueSplit] = useState({ breakdown: [], total: 0 })
+  const [topServices, setTopServices] = useState([])
+  const [topMedicines, setTopMedicines] = useState([])
 
-  // Mock data calculations
-  const totalPatients = mockPatients.length
-  const consultationIncome = mockBills.reduce((sum, bill) => sum + bill.consultation, 0)
-  const medicineIncome = mockMedicines.reduce((sum, med) => sum + (med.price * (100 - med.stock)), 0)
-  const serviceIncome = mockServices.reduce((sum, service) => sum + service.price, 0)
-  const totalRevenue = consultationIncome + medicineIncome + serviceIncome
-
-  // Chart data
-  const monthlyGrowthData = [
-    { month: 'Jan', revenue: 45000, patients: 45 },
-    { month: 'Feb', revenue: 52000, patients: 52 },
-    { month: 'Mar', revenue: 48000, patients: 48 },
-    { month: 'Apr', revenue: 61000, patients: 61 },
-    { month: 'May', revenue: 55000, patients: 55 },
-    { month: 'Jun', revenue: 67000, patients: 67 },
-    { month: 'Jul', revenue: 72000, patients: 72 },
-    { month: 'Aug', revenue: 69000, patients: 69 },
-    { month: 'Sep', revenue: 78000, patients: 78 },
-    { month: 'Oct', revenue: 82000, patients: 82 },
-    { month: 'Nov', revenue: 75000, patients: 75 },
-    { month: 'Dec', revenue: 88000, patients: 88 }
-  ]
-
-  const dailyRevenueData = [
-    { day: 'Mon', revenue: 8500, patients: 12 },
-    { day: 'Tue', revenue: 9200, patients: 15 },
-    { day: 'Wed', revenue: 7800, patients: 11 },
-    { day: 'Thu', revenue: 10500, patients: 18 },
-    { day: 'Fri', revenue: 9800, patients: 16 },
-    { day: 'Sat', revenue: 12000, patients: 22 },
-    { day: 'Sun', revenue: 6500, patients: 9 }
-  ]
-
-  const revenueSplitData = [
-    { name: 'Consultation', value: Math.round((consultationIncome / totalRevenue) * 100) || 40, amount: consultationIncome || 25000 },
-    { name: 'Medicines', value: Math.round((medicineIncome / totalRevenue) * 100) || 35, amount: medicineIncome || 22000 },
-    { name: 'Services', value: Math.round((serviceIncome / totalRevenue) * 100) || 25, amount: serviceIncome || 15000 }
-  ]
-
-  const COLORS = ['#2563EB', '#10B981', '#8B5CF6']
-
-  const StatCard = ({ title, value, change, icon: Icon, color = 'medical-blue' }) => {
-    const colorClasses = {
-      'medical-blue': 'bg-blue-500 text-blue-500',
-      'success-green': 'bg-green-500 text-green-500',
-      'purple': 'bg-purple-500 text-purple-500',
-      'orange': 'bg-orange-500 text-orange-500'
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      
+      const [performanceData, monthlyData, revenueData, servicesData, medicinesData] = await Promise.all([
+        analyticsAPI.getPerformance(),
+        analyticsAPI.getMonthlyGrowth(),
+        analyticsAPI.getRevenueSplit(),
+        analyticsAPI.getTopServices(5),
+        analyticsAPI.getTopMedicines(5)
+      ])
+      
+      setPerformance(performanceData.data)
+      setMonthlyGrowth(monthlyData.data)
+      setRevenueSplit(revenueData.data)
+      setTopServices(servicesData.data)
+      setTopMedicines(medicinesData.data)
+    } catch (error) {
+      console.error('Error fetching analytics:', error)
+    } finally {
+      setLoading(false)
     }
-    
-    return (
-      <Card className="hover:shadow-md transition-shadow">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-600">{title}</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
-            <p className={`text-xs mt-1 flex items-center ${change.startsWith('+') ? 'text-success-green' : 'text-danger-red'}`}>
-              {change.startsWith('+') ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
-              {change}
-            </p>
-          </div>
-          <div className={`w-12 h-12 ${colorClasses[color].split(' ')[0]} bg-opacity-10 rounded-lg flex items-center justify-center`}>
-            <Icon className={`w-6 h-6 ${colorClasses[color].split(' ')[1]}`} />
-          </div>
-        </div>
-      </Card>
-    )
   }
 
-  const MonthlyGrowthChart = () => (
-    <ResponsiveContainer width="100%" height={300}>
-      <AreaChart data={monthlyGrowthData}>
-        <defs>
-          <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#10B981" stopOpacity={0.3}/>
-            <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
-          </linearGradient>
-        </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-        <XAxis dataKey="month" stroke="#9CA3AF" fontSize={12} />
-        <YAxis stroke="#9CA3AF" fontSize={12} />
-        <Tooltip 
-          contentStyle={{ 
-            backgroundColor: '#fff', 
-            border: '1px solid #E5E7EB',
-            borderRadius: '8px',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-          }}
-          formatter={(value, name) => [
-            name === 'revenue' ? `₹${value.toLocaleString()}` : value,
-            name === 'revenue' ? 'Revenue' : 'Patients'
-          ]}
-        />
-        <Area 
-          type="monotone" 
-          dataKey="revenue" 
-          stroke="#10B981" 
-          strokeWidth={2}
-          fillOpacity={1} 
-          fill="url(#colorRevenue)" 
-        />
-      </AreaChart>
-    </ResponsiveContainer>
-  )
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await fetchData()
+    setRefreshing(false)
+  }
 
-  const DailyRevenueChart = () => (
-    <ResponsiveContainer width="100%" height={300}>
-      <BarChart data={dailyRevenueData}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-        <XAxis dataKey="day" stroke="#9CA3AF" fontSize={12} />
-        <YAxis stroke="#9CA3AF" fontSize={12} />
-        <Tooltip 
-          contentStyle={{ 
-            backgroundColor: '#fff', 
-            border: '1px solid #E5E7EB',
-            borderRadius: '8px',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-          }}
-          formatter={(value, name) => [
-            name === 'revenue' ? `₹${value.toLocaleString()}` : value,
-            name === 'revenue' ? 'Revenue' : 'Patients'
-          ]}
-        />
-        <Bar dataKey="revenue" fill="#2563EB" radius={[4, 4, 0, 0]} />
-      </BarChart>
-    </ResponsiveContainer>
-  )
+  useEffect(() => {
+    fetchData()
+  }, [])
 
-  const RevenueSplitChart = () => (
-    <ResponsiveContainer width="100%" height={300}>
-      <PieChart>
-        <Pie
-          data={revenueSplitData}
-          cx="50%"
-          cy="50%"
-          innerRadius={60}
-          outerRadius={100}
-          paddingAngle={5}
-          dataKey="value"
-          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-        >
-          {revenueSplitData.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-          ))}
-        </Pie>
-        <Tooltip 
-          formatter={(value, name, props) => [
-            `₹${props.payload.amount.toLocaleString()} (${value}%)`,
-            name
-          ]}
-          contentStyle={{ 
-            backgroundColor: '#fff', 
-            border: '1px solid #E5E7EB',
-            borderRadius: '8px'
-          }}
-        />
-        <Legend />
-      </PieChart>
-    </ResponsiveContainer>
-  )
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <RefreshCw className="w-8 h-8 text-medical-blue animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading analytics...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
-          <p className="text-gray-600">Business insights and performance metrics</p>
+          <p className="text-gray-600">Clinic performance and insights</p>
         </div>
-        <div className="flex space-x-3">
-          <Button 
-            variant={timePeriod === 'daily' ? 'primary' : 'outline'} 
-            size="md"
-            onClick={() => setTimePeriod('daily')}
-          >
-            Daily
-          </Button>
-          <Button 
-            variant={timePeriod === 'monthly' ? 'primary' : 'outline'} 
-            size="md"
-            onClick={() => setTimePeriod('monthly')}
-          >
-            Monthly
-          </Button>
-        </div>
+        <Button 
+          variant="outline" 
+          size="md" 
+          onClick={handleRefresh}
+          disabled={refreshing}
+        >
+          <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+          {refreshing ? 'Refreshing...' : 'Refresh'}
+        </Button>
       </div>
 
-      {/* Key Metrics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-        <StatCard
-          title="Total Patients"
-          value={totalPatients}
-          change="+12% this month"
-          icon={Users}
-          color="medical-blue"
-        />
-        <StatCard
-          title="Consultation Income"
-          value={`₹${consultationIncome.toLocaleString()}`}
-          change="+8% this month"
-          icon={DollarSign}
-          color="success-green"
-        />
-        <StatCard
-          title="Medicine Income"
-          value={`₹${medicineIncome.toLocaleString()}`}
-          change="+15% this month"
-          icon={Pill}
-          color="purple"
-        />
-        <StatCard
-          title="Service Income"
-          value={`₹${serviceIncome.toLocaleString()}`}
-          change="+22% this month"
-          icon={Stethoscope}
-          color="orange"
-        />
+      {/* Performance Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">₹{performance.totalRevenue?.toLocaleString() || 0}</p>
+              <p className="text-xs text-green-600 mt-1">All time</p>
+            </div>
+            <div className="w-12 h-12 bg-green-500 bg-opacity-10 rounded-lg flex items-center justify-center">
+              <DollarSign className="w-6 h-6 text-green-500" />
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Patients</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{performance.totalPatients || 0}</p>
+              <p className="text-xs text-blue-600 mt-1">All time</p>
+            </div>
+            <div className="w-12 h-12 bg-blue-500 bg-opacity-10 rounded-lg flex items-center justify-center">
+              <Users className="w-6 h-6 text-blue-500" />
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">This Month</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">₹{performance.thisMonthRevenue?.toLocaleString() || 0}</p>
+              <p className={`text-xs mt-1 ${performance.growthPercentage >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {performance.growthPercentage >= 0 ? '+' : ''}{performance.growthPercentage}% vs last month
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-purple-500 bg-opacity-10 rounded-lg flex items-center justify-center">
+              <TrendingUp className="w-6 h-6 text-purple-500" />
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Avg Bill Amount</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">₹{performance.avgBillAmount?.toLocaleString() || 0}</p>
+              <p className="text-xs text-gray-500 mt-1">Per transaction</p>
+            </div>
+            <div className="w-12 h-12 bg-orange-500 bg-opacity-10 rounded-lg flex items-center justify-center">
+              <Calendar className="w-6 h-6 text-orange-500" />
+            </div>
+          </div>
+        </Card>
       </div>
 
-      {/* Charts Section */}
+      {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Revenue Chart */}
-        <ChartCard title={timePeriod === 'daily' ? "Daily Revenue" : "Monthly Growth"}>
-          {timePeriod === 'daily' ? <DailyRevenueChart /> : <MonthlyGrowthChart />}
+        {/* Monthly Growth Chart */}
+        <ChartCard title="Monthly Revenue Growth">
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={monthlyGrowth}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="month" stroke="#9CA3AF" fontSize={12} />
+              <YAxis stroke="#9CA3AF" fontSize={12} />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: '#fff', 
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '8px'
+                }}
+                formatter={(value) => [`₹${value?.toLocaleString()}`, 'Revenue']}
+              />
+              <Line 
+                type="monotone" 
+                dataKey="revenue" 
+                stroke="#2563EB" 
+                strokeWidth={2}
+                dot={{ fill: '#2563EB' }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </ChartCard>
 
         {/* Revenue Breakdown */}
-        <ChartCard title="Revenue Split">
-          <RevenueSplitChart />
+        <ChartCard title="Revenue Breakdown">
+          <ResponsiveContainer width="100%" height={300}>
+            <RechartsPie>
+              <Pie
+                data={revenueSplit.breakdown}
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={100}
+                paddingAngle={5}
+                dataKey="value"
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+              >
+                {revenueSplit.breakdown.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip 
+                formatter={(value) => [`${value}%`, 'Share']}
+                contentStyle={{ 
+                  backgroundColor: '#fff', 
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '8px'
+                }}
+              />
+              <Legend />
+            </RechartsPie>
+          </ResponsiveContainer>
         </ChartCard>
       </div>
 
-      {/* Additional Analytics */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Performance Metrics */}
-        <Card>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Performance</h3>
-            <TrendingUp className="w-5 h-5 text-success-green" />
-          </div>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Average Revenue per Patient</span>
-              <span className="font-semibold">₹{(totalRevenue / totalPatients).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Medicine Sales %</span>
-              <span className="font-semibold">{Math.round((medicineIncome / totalRevenue) * 100)}%</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Service Utilization</span>
-              <span className="font-semibold">{mockServices.length} services</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Patient Retention</span>
-              <span className="font-semibold">85%</span>
-            </div>
-          </div>
-        </Card>
-
+      {/* Charts Row 2 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top Services */}
-        <Card>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Top Services</h3>
-            <BarChart3 className="w-5 h-5 text-blue-500" />
-          </div>
-          <div className="space-y-3">
-            {mockServices.slice(0, 5).map((service, index) => (
-              <div key={service.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-900">{service.name}</p>
-                  <p className="text-sm text-gray-600">Service #{index + 1}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold">₹{service.price}</p>
-                  <p className="text-xs text-gray-500">Revenue</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
+        <ChartCard title="Top Services">
+          {topServices.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No service data available
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={topServices} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis type="number" stroke="#9CA3AF" fontSize={12} />
+                <YAxis dataKey="name" type="category" stroke="#9CA3AF" fontSize={12} width={100} />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: '#fff', 
+                    border: '1px solid #E5E7EB',
+                    borderRadius: '8px'
+                  }}
+                  formatter={(value) => [value, 'Count']}
+                />
+                <Bar dataKey="count" fill="#10B981" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </ChartCard>
 
-        {/* Business Summary */}
-        <Card>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Business Summary</h3>
-            <DollarSign className="w-5 h-5 text-success-green" />
-          </div>
-          <div className="space-y-4">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-600">Total Revenue</p>
-              <p className="text-2xl font-bold text-blue-600 mt-1">₹{totalRevenue.toLocaleString()}</p>
+        {/* Top Medicines */}
+        <ChartCard title="Top Medicines Sold">
+          {topMedicines.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No medicine data available
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-success-green bg-opacity-5 p-3 rounded-lg">
-                <p className="text-xs text-gray-600">Growth</p>
-                <p className="font-semibold text-success-green">+15.2%</p>
-              </div>
-              <div className="bg-purple-50 p-3 rounded-lg">
-                <p className="text-xs text-gray-600">Avg. Bill</p>
-                <p className="font-semibold">₹{(totalRevenue / mockBills.length).toLocaleString()}</p>
-              </div>
-              <div className="bg-orange-50 p-3 rounded-lg">
-                <p className="text-xs text-gray-600">Occupancy</p>
-                <p className="font-semibold">78%</p>
-              </div>
-              <div className="bg-blue-50 p-3 rounded-lg">
-                <p className="text-xs text-gray-600">Rating</p>
-                <p className="font-semibold">4.8/5.0</p>
-              </div>
-            </div>
-          </div>
-        </Card>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={topMedicines} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis type="number" stroke="#9CA3AF" fontSize={12} />
+                <YAxis dataKey="name" type="category" stroke="#9CA3AF" fontSize={12} width={100} />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: '#fff', 
+                    border: '1px solid #E5E7EB',
+                    borderRadius: '8px'
+                  }}
+                  formatter={(value) => [value, 'Units Sold']}
+                />
+                <Bar dataKey="quantitySold" fill="#8B5CF6" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </ChartCard>
       </div>
     </div>
   )

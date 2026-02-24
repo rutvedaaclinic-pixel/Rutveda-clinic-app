@@ -1,16 +1,16 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import Card from '../ui/Card'
 import ChartCard from '../ui/ChartCard'
-import { mockPatients, mockMedicines, mockServices, mockBills } from '../../context/data/patients'
+import Button from '../ui/Button'
+import { analyticsAPI, patientsAPI } from '../../services/api'
 import { 
   Users, 
   DollarSign, 
   Pill, 
   Stethoscope,
-  BarChart3,
-  PieChart,
   TrendingUp,
-  Calendar
+  Calendar,
+  RefreshCw
 } from 'lucide-react'
 import { 
   BarChart, 
@@ -23,34 +23,8 @@ import {
   PieChart as RechartsPie,
   Pie,
   Cell,
-  Legend,
-  LineChart,
-  Line
+  Legend
 } from 'recharts'
-
-// Mock data calculations
-const today = new Date().toISOString().split('T')[0]
-const patientsToday = mockPatients.filter(p => p.lastVisit === today).length
-const earningsToday = mockBills.reduce((sum, bill) => sum + bill.total, 0)
-const medicineSales = mockMedicines.reduce((sum, med) => sum + (med.price * (100 - med.stock)), 0)
-const serviceSales = mockServices.reduce((sum, service) => sum + service.price, 0)
-
-// Chart data
-const dailyEarningsData = [
-  { day: 'Mon', earnings: 4500, patients: 8 },
-  { day: 'Tue', earnings: 5200, patients: 12 },
-  { day: 'Wed', earnings: 3800, patients: 7 },
-  { day: 'Thu', earnings: 6100, patients: 15 },
-  { day: 'Fri', earnings: 4800, patients: 10 },
-  { day: 'Sat', earnings: 7200, patients: 18 },
-  { day: 'Sun', earnings: 3500, patients: 6 }
-]
-
-const revenueBreakdownData = [
-  { name: 'Consultation', value: 40, color: '#2563EB' },
-  { name: 'Medicines', value: 35, color: '#10B981' },
-  { name: 'Services', value: 25, color: '#8B5CF6' }
-]
 
 const COLORS = ['#2563EB', '#10B981', '#8B5CF6']
 
@@ -74,90 +48,66 @@ const SummaryCard = ({ title, value, icon: Icon, change, variant = 'default' }) 
   </Card>
 )
 
-const DailyEarningsChart = () => (
-  <ResponsiveContainer width="100%" height={300}>
-    <BarChart data={dailyEarningsData}>
-      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-      <XAxis dataKey="day" stroke="#9CA3AF" fontSize={12} />
-      <YAxis stroke="#9CA3AF" fontSize={12} />
-      <Tooltip 
-        contentStyle={{ 
-          backgroundColor: '#fff', 
-          border: '1px solid #E5E7EB',
-          borderRadius: '8px',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-        }}
-        formatter={(value) => [`₹${value.toLocaleString()}`, 'Earnings']}
-      />
-      <Bar dataKey="earnings" fill="#2563EB" radius={[4, 4, 0, 0]} />
-    </BarChart>
-  </ResponsiveContainer>
-)
+export default function Dashboard() {
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [summary, setSummary] = useState({
+    patientsToday: 0,
+    earningsToday: 0,
+    totalPatients: 0,
+    totalMedicines: 0,
+    totalServices: 0,
+    lowStockCount: 0,
+    expiringSoonCount: 0
+  })
+  const [dailyEarnings, setDailyEarnings] = useState([])
+  const [revenueSplit, setRevenueSplit] = useState({ breakdown: [], total: 0 })
+  const [recentPatients, setRecentPatients] = useState([])
 
-const RevenueBreakdownChart = () => (
-  <ResponsiveContainer width="100%" height={300}>
-    <RechartsPie>
-      <Pie
-        data={revenueBreakdownData}
-        cx="50%"
-        cy="50%"
-        innerRadius={60}
-        outerRadius={100}
-        paddingAngle={5}
-        dataKey="value"
-        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-      >
-        {revenueBreakdownData.map((entry, index) => (
-          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-        ))}
-      </Pie>
-      <Tooltip 
-        formatter={(value) => [`${value}%`, 'Share']}
-        contentStyle={{ 
-          backgroundColor: '#fff', 
-          border: '1px solid #E5E7EB',
-          borderRadius: '8px'
-        }}
-      />
-      <Legend />
-    </RechartsPie>
-  </ResponsiveContainer>
-)
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      
+      // Fetch all data in parallel
+      const [summaryData, earningsData, revenueData, patientsData] = await Promise.all([
+        analyticsAPI.getSummary(),
+        analyticsAPI.getDailyEarnings(7),
+        analyticsAPI.getRevenueSplit(),
+        analyticsAPI.getRecentPatients(5)
+      ])
+      
+      setSummary(summaryData.data)
+      setDailyEarnings(earningsData.data)
+      setRevenueSplit(revenueData.data)
+      setRecentPatients(patientsData.data)
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-const RecentPatientsTable = () => (
-  <div className="space-y-4">
-    {mockPatients.slice(0, 5).map((patient) => (
-      <div key={patient.id} className="flex items-center justify-between p-4 border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors">
-        <div className="flex items-center space-x-4">
-          <div className="w-10 h-10 bg-medical-blue bg-opacity-10 rounded-full flex items-center justify-center">
-            <Users className="w-5 h-5 text-medical-blue" />
-          </div>
-          <div>
-            <p className="font-medium text-gray-900">{patient.name}</p>
-            <p className="text-sm text-gray-500">{patient.id} • {patient.phone}</p>
-          </div>
-        </div>
-        <div className="text-right hidden sm:block">
-          <p className="text-sm font-medium text-gray-900">{patient.age} years</p>
-          <p className="text-xs text-gray-500 flex items-center justify-end">
-            <Calendar className="w-3 h-3 mr-1" />
-            {patient.lastVisit}
-          </p>
-        </div>
-        <div className="flex space-x-2">
-          <button className="border-2 border-medical-blue text-medical-blue px-3 py-1.5 rounded-lg text-xs hover:bg-medical-blue hover:text-white transition-colors font-medium">
-            View
-          </button>
-          <button className="bg-medical-blue text-white px-3 py-1.5 rounded-lg text-xs hover:bg-blue-700 transition-colors font-medium">
-            Create Bill
-          </button>
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await fetchData()
+    setRefreshing(false)
+  }
+
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <RefreshCw className="w-8 h-8 text-medical-blue animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading dashboard...</p>
         </div>
       </div>
-    ))}
-  </div>
-)
+    )
+  }
 
-export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -167,12 +117,15 @@ export default function Dashboard() {
           <p className="text-gray-600">Welcome to RUTVEDA CLINIC</p>
         </div>
         <div className="flex space-x-3">
-          <button className="bg-medical-blue text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
-            Export Report
-          </button>
-          <button className="border-2 border-medical-blue text-medical-blue px-4 py-2 rounded-lg hover:bg-medical-blue hover:text-white transition-colors text-sm font-medium">
-            Refresh
-          </button>
+          <Button 
+            variant="outline" 
+            size="md" 
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
         </div>
       </div>
 
@@ -180,29 +133,29 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
         <SummaryCard
           title="Patients Today"
-          value={patientsToday || 12}
+          value={summary.patientsToday}
           icon={Users}
           change="+2 from yesterday"
           variant="highlight"
         />
         <SummaryCard
           title="Earnings Today"
-          value={`₹${earningsToday.toLocaleString()}`}
+          value={`₹${summary.earningsToday.toLocaleString()}`}
           icon={DollarSign}
           change="+12% from yesterday"
           variant="success"
         />
         <SummaryCard
-          title="Medicine Sales"
-          value={`₹${medicineSales.toLocaleString()}`}
-          icon={Pill}
-          change="+8% this month"
+          title="Total Patients"
+          value={summary.totalPatients}
+          icon={Users}
+          change={`${summary.totalMedicines} medicines`}
         />
         <SummaryCard
-          title="Service Sales"
-          value={`₹${serviceSales.toLocaleString()}`}
+          title="Total Services"
+          value={summary.totalServices}
           icon={Stethoscope}
-          change="+15% this month"
+          change={`${summary.lowStockCount} low stock`}
         />
       </div>
 
@@ -210,12 +163,54 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Daily Earnings Chart */}
         <ChartCard title="Daily Earnings">
-          <DailyEarningsChart />
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={dailyEarnings}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="day" stroke="#9CA3AF" fontSize={12} />
+              <YAxis stroke="#9CA3AF" fontSize={12} />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: '#fff', 
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                }}
+                formatter={(value) => [`₹${value.toLocaleString()}`, 'Earnings']}
+              />
+              <Bar dataKey="earnings" fill="#2563EB" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </ChartCard>
 
         {/* Revenue Breakdown */}
         <ChartCard title="Revenue Breakdown">
-          <RevenueBreakdownChart />
+          <ResponsiveContainer width="100%" height={300}>
+            <RechartsPie>
+              <Pie
+                data={revenueSplit.breakdown}
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={100}
+                paddingAngle={5}
+                dataKey="value"
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+              >
+                {revenueSplit.breakdown.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip 
+                formatter={(value) => [`${value}%`, 'Share']}
+                contentStyle={{ 
+                  backgroundColor: '#fff', 
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '8px'
+                }}
+              />
+              <Legend />
+            </RechartsPie>
+          </ResponsiveContainer>
         </ChartCard>
       </div>
 
@@ -227,7 +222,44 @@ export default function Dashboard() {
             View All Patients →
           </a>
         </div>
-        <RecentPatientsTable />
+        
+        {recentPatients.length === 0 ? (
+          <div className="text-center py-8">
+            <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500">No patients found. Add your first patient!</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {recentPatients.map((patient) => (
+              <div key={patient._id} className="flex items-center justify-between p-4 border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors">
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 bg-medical-blue bg-opacity-10 rounded-full flex items-center justify-center">
+                    <Users className="w-5 h-5 text-medical-blue" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">{patient.name}</p>
+                    <p className="text-sm text-gray-500">{patient.patientId} • {patient.phone}</p>
+                  </div>
+                </div>
+                <div className="text-right hidden sm:block">
+                  <p className="text-sm font-medium text-gray-900">{patient.age} years</p>
+                  <p className="text-xs text-gray-500 flex items-center justify-end">
+                    <Calendar className="w-3 h-3 mr-1" />
+                    {patient.lastVisit ? new Date(patient.lastVisit).toLocaleDateString() : 'N/A'}
+                  </p>
+                </div>
+                <div className="flex space-x-2">
+                  <Button variant="outline" size="sm" href={`/patients/${patient._id}`}>
+                    View
+                  </Button>
+                  <Button variant="primary" size="sm" href={`/billing?patient=${patient._id}`}>
+                    Create Bill
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
     </div>
   )

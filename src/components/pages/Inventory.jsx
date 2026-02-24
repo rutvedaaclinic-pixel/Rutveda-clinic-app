@@ -1,9 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
 import InputField from '../ui/InputField'
 import Table from '../ui/Table'
-import { mockMedicines } from '../../context/data/patients'
+import { medicinesAPI } from '../../services/api'
 import { 
   Search, 
   Plus, 
@@ -12,81 +12,91 @@ import {
   Package,
   AlertTriangle,
   Calendar,
-  Droplet
+  Droplet,
+  RefreshCw
 } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 export default function Inventory() {
+  const [loading, setLoading] = useState(true)
+  const [medicines, setMedicines] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [filter, setFilter] = useState('all')
-  const [lowStockAlert, setLowStockAlert] = useState(true)
-
-  const filteredMedicines = mockMedicines.filter(medicine => {
-    const matchesSearch = medicine.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         medicine.id.toLowerCase().includes(searchQuery.toLowerCase())
-    
-    if (filter === 'low-stock') {
-      return matchesSearch && medicine.status === 'low-stock'
-    } else if (filter === 'expiring-soon') {
-      return matchesSearch && medicine.status === 'expiring-soon'
-    } else if (filter === 'in-stock') {
-      return matchesSearch && medicine.status === 'in-stock'
-    }
-    
-    return matchesSearch
+  const [stats, setStats] = useState({
+    total: 0,
+    inStock: 0,
+    lowStock: 0,
+    expiringSoon: 0
   })
+
+  const fetchMedicines = async () => {
+    try {
+      setLoading(true)
+      const params = new URLSearchParams()
+      if (searchQuery) params.append('search', searchQuery)
+      if (filter !== 'all') params.append('filter', filter)
+      
+      const [medicinesData, statsData] = await Promise.all([
+        medicinesAPI.getAll(`?${params.toString()}`),
+        medicinesAPI.getStats()
+      ])
+      
+      setMedicines(medicinesData.data)
+      setStats(statsData.data)
+    } catch (error) {
+      console.error('Error fetching medicines:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchMedicines()
+  }, [filter])
+
+  useEffect(() => {
+    const debounce = setTimeout(() => {
+      if (searchQuery !== '') fetchMedicines()
+    }, 500)
+    return () => clearTimeout(debounce)
+  }, [searchQuery])
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this medicine?')) {
+      try {
+        await medicinesAPI.delete(id)
+        toast.success('Medicine deleted successfully')
+        fetchMedicines()
+      } catch (error) {
+        toast.error(error.message)
+      }
+    }
+  }
 
   const getStatusBadge = (status) => {
     switch (status) {
       case 'in-stock':
-        return {
-          label: 'In Stock',
-          color: 'bg-green-100 text-green-800',
-          icon: <Droplet className="w-3 h-3 text-green-600" />
-        }
+        return { label: 'In Stock', color: 'bg-green-100 text-green-800' }
       case 'low-stock':
-        return {
-          label: 'Low Stock',
-          color: 'bg-red-100 text-red-800',
-          icon: <AlertTriangle className="w-3 h-3 text-red-600" />
-        }
+        return { label: 'Low Stock', color: 'bg-red-100 text-red-800' }
       case 'expiring-soon':
-        return {
-          label: 'Expiring Soon',
-          color: 'bg-orange-100 text-orange-800',
-          icon: <Calendar className="w-3 h-3 text-orange-600" />
-        }
+        return { label: 'Expiring Soon', color: 'bg-orange-100 text-orange-800' }
+      case 'out-of-stock':
+        return { label: 'Out of Stock', color: 'bg-gray-100 text-gray-800' }
       default:
-        return {
-          label: 'Unknown',
-          color: 'bg-gray-100 text-gray-800',
-          icon: null
-        }
+        return { label: 'Unknown', color: 'bg-gray-100 text-gray-800' }
     }
   }
 
-  const getStockLevel = (stock) => {
-    if (stock <= 10) return 'critical'
-    if (stock <= 25) return 'low'
-    if (stock <= 50) return 'medium'
-    return 'high'
-  }
-
-  const getStockColor = (stock) => {
-    const level = getStockLevel(stock)
-    switch (level) {
-      case 'critical': return 'bg-red-500'
-      case 'low': return 'bg-orange-500'
-      case 'medium': return 'bg-yellow-500'
-      case 'high': return 'bg-green-500'
-      default: return 'bg-gray-300'
-    }
-  }
-
-  const getStockWidth = (stock) => {
-    if (stock <= 10) return 'w-1/4'
-    if (stock <= 25) return 'w-1/2'
-    if (stock <= 50) return 'w-3/4'
-    return 'w-full'
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <RefreshCw className="w-8 h-8 text-medical-blue animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading inventory...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -98,34 +108,67 @@ export default function Inventory() {
           <p className="text-gray-600">Manage medicine stock and supplies</p>
         </div>
         <div className="flex space-x-3">
-          <Button variant="outline" size="md">
-            <Plus className="w-4 h-4 mr-2" />
-            Import Inventory
+          <Button variant="outline" size="md" onClick={fetchMedicines}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
           </Button>
-          <Button variant="primary" size="md">
+          <Button variant="primary" size="md" href="/add-medicine">
             <Plus className="w-4 h-4 mr-2" />
             Add Medicine
           </Button>
         </div>
       </div>
 
-      {/* Alerts */}
-      {lowStockAlert && (
-        <Card className="border-red-200 bg-red-50">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card>
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <AlertTriangle className="w-5 h-5 text-red-600" />
-              <div>
-                <p className="font-medium text-red-900">Low Stock Alert</p>
-                <p className="text-sm text-red-700">3 medicines need restocking</p>
-              </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Medicines</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
             </div>
-            <Button variant="danger" size="sm" onClick={() => setLowStockAlert(false)}>
-              Dismiss
-            </Button>
+            <div className="w-12 h-12 bg-blue-500 bg-opacity-10 rounded-lg flex items-center justify-center">
+              <Package className="w-6 h-6 text-blue-500" />
+            </div>
           </div>
         </Card>
-      )}
+
+        <Card>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">In Stock</p>
+              <p className="text-2xl font-bold text-green-600 mt-1">{stats.inStock}</p>
+            </div>
+            <div className="w-12 h-12 bg-green-500 bg-opacity-10 rounded-lg flex items-center justify-center">
+              <Droplet className="w-6 h-6 text-green-500" />
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Low Stock</p>
+              <p className="text-2xl font-bold text-red-600 mt-1">{stats.lowStock}</p>
+            </div>
+            <div className="w-12 h-12 bg-red-500 bg-opacity-10 rounded-lg flex items-center justify-center">
+              <AlertTriangle className="w-6 h-6 text-red-500" />
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Expiring Soon</p>
+              <p className="text-2xl font-bold text-orange-600 mt-1">{stats.expiringSoon}</p>
+            </div>
+            <div className="w-12 h-12 bg-orange-500 bg-opacity-10 rounded-lg flex items-center justify-center">
+              <Calendar className="w-6 h-6 text-orange-500" />
+            </div>
+          </div>
+        </Card>
+      </div>
 
       {/* Search and Filters */}
       <Card>
@@ -133,7 +176,7 @@ export default function Inventory() {
           <div className="lg:col-span-2">
             <InputField
               label="Search Medicines"
-              placeholder="Search by name, ID, or description..."
+              placeholder="Search by name or ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               icon={<Search className="w-4 h-4 text-gray-400" />}
@@ -164,158 +207,73 @@ export default function Inventory() {
             >
               Low Stock
             </Button>
-            <Button 
-              variant={filter === 'expiring-soon' ? 'primary' : 'outline'} 
-              size="md"
-              onClick={() => setFilter('expiring-soon')}
-              className="flex-1"
-            >
-              Expiring
-            </Button>
           </div>
         </div>
       </Card>
 
       {/* Inventory Table */}
       <Card>
-        <div className="overflow-x-auto">
-          <Table
-            headers={['Image', 'Name', 'Stock', 'Price', 'Expiry', 'Status', 'Action']}
-          >
-            {filteredMedicines.map((medicine) => {
-              const status = getStatusBadge(medicine.status)
-              const stockLevel = getStockLevel(medicine.stock)
-              const stockColor = getStockColor(medicine.stock)
-              const stockWidth = getStockWidth(medicine.stock)
-
-              return (
-                <tr key={medicine.id} className="table-row">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <Package className="w-6 h-6 text-gray-400" />
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="font-medium text-gray-900">{medicine.name}</div>
-                      <div className="text-sm text-gray-500">{medicine.id}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium">{medicine.stock} units</span>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${status.color}`}>
-                          {status.icon && <span className="mr-1">{status.icon}</span>}
-                          {status.label}
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className={`h-2 ${stockColor} rounded-full ${stockWidth}`}></div>
-                      </div>
-                      <div className="flex justify-between text-xs text-gray-500">
-                        <span>Min: 10 units</span>
-                        <span>Max: 200 units</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div className="font-medium">₹{medicine.price}</div>
-                    <div className="text-xs text-gray-500">per unit</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div className="flex items-center space-x-2">
-                      <Calendar className="w-4 h-4 text-gray-400" />
-                      <span>{medicine.expiry}</span>
-                    </div>
-                    {medicine.status === 'expiring-soon' && (
-                      <span className="text-xs text-orange-600 mt-1">⚠️ Expires soon</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${status.color}`}>
-                      {status.icon && <span className="mr-1">{status.icon}</span>}
-                      {status.label}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                    <Button variant="outline" size="sm" className="flex items-center space-x-2">
-                      <Edit className="w-4 h-4" />
-                      <span>Edit</span>
-                    </Button>
-                    <Button variant="danger" size="sm" className="flex items-center space-x-2">
-                      <Trash2 className="w-4 h-4" />
-                      <span>Delete</span>
-                    </Button>
-                  </td>
-                </tr>
-              )
-            })}
-          </Table>
-        </div>
-        
-        {/* Empty State */}
-        {filteredMedicines.length === 0 && (
+        {medicines.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Package className="w-8 h-8 text-gray-400" />
             </div>
             <h3 className="text-sm font-medium text-gray-900 mb-2">No medicines found</h3>
-            <p className="text-sm text-gray-500">Try adjusting your search or filter criteria.</p>
-            {filter !== 'all' && (
-              <Button variant="outline" size="sm" onClick={() => setFilter('all')} className="mt-4">
-                View All Medicines
-              </Button>
-            )}
+            <p className="text-sm text-gray-500 mb-4">Add your first medicine to the inventory.</p>
+            <Button variant="primary" size="md" href="/add-medicine">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Medicine
+            </Button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table headers={['Name', 'Stock', 'Price', 'Expiry', 'Status', 'Action']}>
+              {medicines.map((medicine) => {
+                const status = getStatusBadge(medicine.status)
+                return (
+                  <tr key={medicine._id} className="table-row">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center mr-3">
+                          <Package className="w-5 h-5 text-gray-400" />
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900">{medicine.name}</div>
+                          <div className="text-sm text-gray-500">{medicine.medicineId}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="font-medium text-gray-900">{medicine.stock} units</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      ₹{medicine.sellingPrice}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {new Date(medicine.expiryDate).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${status.color}`}>
+                        {status.label}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                      <Button variant="outline" size="sm">
+                        <Edit className="w-4 h-4 mr-1" />
+                        Edit
+                      </Button>
+                      <Button variant="danger" size="sm" onClick={() => handleDelete(medicine._id)}>
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Delete
+                      </Button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </Table>
           </div>
         )}
       </Card>
-
-      {/* Inventory Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center">
-              <Package className="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">Total Medicines</h3>
-              <p className="text-sm text-gray-600">All inventory items</p>
-            </div>
-          </div>
-          <div className="text-3xl font-bold text-gray-900">{mockMedicines.length}</div>
-        </Card>
-
-        <Card>
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-red-600" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">Low Stock</h3>
-              <p className="text-sm text-gray-600">Items needing restock</p>
-            </div>
-          </div>
-          <div className="text-3xl font-bold text-red-600">
-            {mockMedicines.filter(m => m.status === 'low-stock').length}
-          </div>
-        </Card>
-
-        <Card>
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="w-10 h-10 bg-orange-50 rounded-full flex items-center justify-center">
-              <Calendar className="w-5 h-5 text-orange-600" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">Expiring Soon</h3>
-              <p className="text-sm text-gray-600">Items with expiry alerts</p>
-            </div>
-          </div>
-          <div className="text-3xl font-bold text-orange-600">
-            {mockMedicines.filter(m => m.status === 'expiring-soon').length}
-          </div>
-        </Card>
-      </div>
     </div>
   )
 }
