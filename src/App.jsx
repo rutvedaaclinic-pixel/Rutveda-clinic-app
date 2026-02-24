@@ -9,6 +9,7 @@ import Inventory from './components/pages/Inventory'
 import Services from './components/pages/Services'
 import AddPatient from './components/pages/AddPatient'
 import AddMedicine from './components/pages/AddMedicine'
+import CreateBill from './components/pages/CreateBill'
 import { ToastProvider } from './components/ui/Toast'
 
 // 404 Not Found Page
@@ -62,6 +63,7 @@ function App() {
             <Route path="services" element={<Services />} />
             <Route path="add-patient" element={<AddPatient />} />
             <Route path="add-medicine" element={<AddMedicine />} />
+            <Route path="create-bill" element={<CreateBill />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>

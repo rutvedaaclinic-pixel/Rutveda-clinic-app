@@ -84,7 +84,7 @@ export default function Billing() {
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>
-          <Button variant="primary" size="md" href="/add-patient">
+          <Button variant="primary" size="md" href="/create-bill">
             <Plus className="w-4 h-4 mr-2" />
             New Bill
           </Button>

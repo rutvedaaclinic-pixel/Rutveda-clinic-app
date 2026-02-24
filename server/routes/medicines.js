@@ -143,7 +143,14 @@ router.get('/:id', async (req, res) => {
 // @access  Public
 router.post('/', async (req, res) => {
   try {
-    const medicine = await Medicine.create(req.body);
+    // Generate medicine ID
+    const medicineId = await Medicine.generateMedicineId();
+    
+    // Create medicine with generated ID
+    const medicine = await Medicine.create({
+      ...req.body,
+      medicineId
+    });
     res.status(201).json({ success: true, message: 'Medicine created successfully', data: medicine });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });

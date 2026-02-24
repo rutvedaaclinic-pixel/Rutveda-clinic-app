@@ -119,7 +119,14 @@ router.get('/:id', async (req, res) => {
 // @access  Public
 router.post('/', async (req, res) => {
   try {
-    const bill = await Bill.create(req.body);
+    // Generate bill ID
+    const billId = await Bill.generateBillId();
+    
+    // Create bill with generated ID
+    const bill = await Bill.create({
+      ...req.body,
+      billId
+    });
     res.status(201).json({ success: true, message: 'Bill created successfully', data: bill });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });

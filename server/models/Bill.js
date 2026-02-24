@@ -82,7 +82,7 @@ const billSchema = new mongoose.Schema({
   },
   totalAmount: {
     type: Number,
-    required: true,
+    default: 0,
     min: [0, 'Total amount cannot be negative']
   },
   paymentStatus: {
@@ -103,7 +103,7 @@ const billSchema = new mongoose.Schema({
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false
   }
 }, {
   timestamps: true
