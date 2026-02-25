@@ -35,6 +35,10 @@ exports.getSummary = async (req, res, next) => {
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    // Yesterday's date range
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
 
     // Today's stats
     const patientsToday = await Patient.countDocuments({
@@ -45,6 +49,26 @@ exports.getSummary = async (req, res, next) => {
       createdAt: { $gte: today, $lt: tomorrow }
     });
     const earningsToday = todayBills.reduce((sum, bill) => sum + bill.totalAmount, 0);
+    
+    // Today's medicine and service sales
+    const medicineSalesToday = todayBills.reduce((sum, bill) => sum + (bill.medicinesTotal || 0), 0);
+    const serviceSalesToday = todayBills.reduce((sum, bill) => sum + (bill.servicesTotal || 0), 0);
+    
+    // Yesterday's stats for comparison
+    const patientsYesterday = await Patient.countDocuments({
+      lastVisit: { $gte: yesterday, $lt: today }
+    });
+    
+    const yesterdayBills = await Bill.find({
+      createdAt: { $gte: yesterday, $lt: today }
+    });
+    const earningsYesterday = yesterdayBills.reduce((sum, bill) => sum + bill.totalAmount, 0);
+    
+    // Calculate changes
+    const patientsChange = patientsToday - patientsYesterday;
+    const earningsChangePercent = earningsYesterday > 0 
+      ? ((earningsToday - earningsYesterday) / earningsYesterday * 100).toFixed(1)
+      : (earningsToday > 0 ? 100 : 0);
 
     // Total counts
     const totalPatients = await Patient.countDocuments();
@@ -64,6 +88,12 @@ exports.getSummary = async (req, res, next) => {
     return successResponse(res, {
       patientsToday,
       earningsToday,
+      medicineSalesToday,
+      serviceSalesToday,
+      patientsYesterday,
+      earningsYesterday,
+      patientsChange,
+      earningsChangePercent: parseFloat(earningsChangePercent),
       totalPatients,
       totalMedicines,
       totalServices,

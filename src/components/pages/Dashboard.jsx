@@ -28,14 +28,14 @@ import {
 
 const COLORS = ['#2563EB', '#10B981', '#8B5CF6']
 
-const SummaryCard = ({ title, value, icon: Icon, change, variant = 'default' }) => (
+const SummaryCard = ({ title, value, icon: Icon, change, variant = 'default', changeGreen = false }) => (
   <Card variant={variant} className="hover:shadow-md transition-shadow">
     <div className="flex items-center justify-between">
       <div>
         <p className="text-sm font-medium text-gray-600">{title}</p>
         <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
         {change && (
-          <p className={`text-xs mt-1 flex items-center ${change.startsWith('+') ? 'text-success-green' : 'text-danger-red'}`}>
+          <p className={`text-xs mt-1 flex items-center ${changeGreen ? 'text-success-green' : (change.startsWith('+') ? 'text-success-green' : 'text-danger-red')}`}>
             {change.startsWith('+') ? <TrendingUp className="w-3 h-3 mr-1" /> : null}
             {change}
           </p>
@@ -54,6 +54,12 @@ export default function Dashboard() {
   const [summary, setSummary] = useState({
     patientsToday: 0,
     earningsToday: 0,
+    medicineSalesToday: 0,
+    serviceSalesToday: 0,
+    patientsYesterday: 0,
+    earningsYesterday: 0,
+    patientsChange: 0,
+    earningsChangePercent: 0,
     totalPatients: 0,
     totalMedicines: 0,
     totalServices: 0,
@@ -135,27 +141,29 @@ export default function Dashboard() {
           title="Patients Today"
           value={summary.patientsToday}
           icon={Users}
-          change="+2 from yesterday"
+          change={summary.patientsChange >= 0 ? `+${summary.patientsChange} from yesterday` : `${summary.patientsChange} from yesterday`}
           variant="highlight"
         />
         <SummaryCard
           title="Earnings Today"
           value={`₹${summary.earningsToday.toLocaleString()}`}
           icon={DollarSign}
-          change="+12% from yesterday"
+          change={summary.earningsChangePercent >= 0 ? `+${summary.earningsChangePercent}% from yesterday` : `${summary.earningsChangePercent}% from yesterday`}
           variant="success"
         />
         <SummaryCard
-          title="Total Patients"
-          value={summary.totalPatients}
-          icon={Users}
-          change={`${summary.totalMedicines} medicines`}
+          title="Medicine Sales"
+          value={`₹${summary.medicineSalesToday.toLocaleString()}`}
+          icon={Pill}
+          change="Today's medicine sales"
+          changeGreen={true}
         />
         <SummaryCard
-          title="Total Services"
-          value={summary.totalServices}
+          title="Service Sales"
+          value={`₹${summary.serviceSalesToday.toLocaleString()}`}
           icon={Stethoscope}
-          change={`${summary.lowStockCount} low stock`}
+          change="Today's service sales"
+          changeGreen={true}
         />
       </div>
 
