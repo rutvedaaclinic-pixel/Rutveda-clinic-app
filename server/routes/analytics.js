@@ -4,6 +4,7 @@ const {
   getSummary,
   getDailyEarnings,
   getMonthlyGrowth,
+  getYearlyGrowth,
   getRevenueSplit,
   getRecentPatients,
   getTopServices,
@@ -19,6 +20,7 @@ const {
 router.get('/summary', getSummary);
 router.get('/daily-earnings', getDailyEarnings);
 router.get('/monthly-growth', getMonthlyGrowth);
+router.get('/yearly-growth', getYearlyGrowth);
 router.get('/revenue-split', getRevenueSplit);
 router.get('/recent-patients', getRecentPatients);
 router.get('/top-services', getTopServices);

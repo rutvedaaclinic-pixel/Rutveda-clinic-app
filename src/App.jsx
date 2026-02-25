@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import Layout from './components/layout/Layout'
 import Dashboard from './components/pages/Dashboard'
@@ -10,7 +10,48 @@ import Services from './components/pages/Services'
 import AddPatient from './components/pages/AddPatient'
 import AddMedicine from './components/pages/AddMedicine'
 import CreateBill from './components/pages/CreateBill'
+import Login from './components/pages/Login'
+import Profile from './components/pages/Profile'
 import { ToastProvider } from './components/ui/Toast'
+import { AuthProvider, useAuth } from './context/AuthContext'
+
+// Protected Route Component
+const ProtectedRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth()
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />
+  }
+  
+  return children
+}
+
+// Public Route Component (redirects to dashboard if already logged in)
+const PublicRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth()
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+  
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />
+  }
+  
+  return children
+}
 
 // 404 Not Found Page
 const NotFound = () => (
@@ -31,44 +72,65 @@ const NotFound = () => (
 
 function App() {
   return (
-    <ToastProvider>
-      <Toaster 
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#363636',
-            color: '#fff',
-          },
-          success: {
+    <AuthProvider>
+      <ToastProvider>
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
             style: {
-              background: '#10B981',
+              background: '#363636',
+              color: '#fff',
             },
-          },
-          error: {
-            style: {
-              background: '#EF4444',
+            success: {
+              style: {
+                background: '#10B981',
+              },
             },
-          },
-        }}
-      />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="patients" element={<Patients />} />
-            <Route path="billing" element={<Billing />} />
-            <Route path="analytics" element={<Analytics />} />
-            <Route path="inventory" element={<Inventory />} />
-            <Route path="services" element={<Services />} />
-            <Route path="add-patient" element={<AddPatient />} />
-            <Route path="add-medicine" element={<AddMedicine />} />
-            <Route path="create-bill" element={<CreateBill />} />
-            <Route path="*" element={<NotFound />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </ToastProvider>
+            error: {
+              style: {
+                background: '#EF4444',
+              },
+            },
+          }}
+        />
+        <BrowserRouter>
+          <Routes>
+            {/* Public Routes */}
+            <Route 
+              path="/login" 
+              element={
+                <PublicRoute>
+                  <Login />
+                </PublicRoute>
+              } 
+            />
+            
+            {/* Protected Routes */}
+            <Route 
+              path="/" 
+              element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Dashboard />} />
+              <Route path="patients" element={<Patients />} />
+              <Route path="billing" element={<Billing />} />
+              <Route path="analytics" element={<Analytics />} />
+              <Route path="inventory" element={<Inventory />} />
+              <Route path="services" element={<Services />} />
+              <Route path="add-patient" element={<AddPatient />} />
+              <Route path="add-medicine" element={<AddMedicine />} />
+              <Route path="create-bill" element={<CreateBill />} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="*" element={<NotFound />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </ToastProvider>
+    </AuthProvider>
   )
 }
 

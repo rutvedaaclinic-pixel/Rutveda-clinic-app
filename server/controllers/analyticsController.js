@@ -4,6 +4,28 @@ const Service = require('../models/Service');
 const Bill = require('../models/Bill');
 const { successResponse } = require('../utils/response');
 
+// Helper function to get date range based on period
+const getDateRange = (period) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  
+  const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  firstDayOfMonth.setHours(0, 0, 0, 0);
+  
+  switch (period) {
+    case 'today':
+      return { start: today, end: tomorrow };
+    case 'month':
+      return { start: firstDayOfMonth, end: tomorrow };
+    case 'all':
+    default:
+      return { start: null, end: null };
+  }
+};
+
 // @desc    Get dashboard summary
 // @route   GET /api/analytics/summary
 // @access  Private
@@ -128,18 +150,73 @@ exports.getMonthlyGrowth = async (req, res, next) => {
   }
 };
 
+// @desc    Get yearly growth data (all time)
+// @route   GET /api/analytics/yearly-growth
+// @access  Private
+exports.getYearlyGrowth = async (req, res, next) => {
+  try {
+    // Get all bills and group by year
+    const yearlyData = await Bill.aggregate([
+      {
+        $group: {
+          _id: { $year: '$createdAt' },
+          revenue: { $sum: '$totalAmount' },
+          billsCount: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Get patient counts by year
+    const patientsByYear = await Patient.aggregate([
+      {
+        $group: {
+          _id: { $year: '$createdAt' },
+          patients: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Combine the data
+    const result = yearlyData.map(yearData => {
+      const patientData = patientsByYear.find(p => p._id === yearData._id);
+      return {
+        year: yearData._id,
+        revenue: yearData.revenue,
+        patients: patientData ? patientData.patients : 0,
+        billsCount: yearData.billsCount
+      };
+    });
+
+    // If no data, return empty array
+    if (result.length === 0) {
+      const currentYear = new Date().getFullYear();
+      result.push({
+        year: currentYear,
+        revenue: 0,
+        patients: 0,
+        billsCount: 0
+      });
+    }
+
+    return successResponse(res, result, 'Yearly growth data retrieved');
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Get revenue breakdown
 // @route   GET /api/analytics/revenue-split
 // @access  Private
 exports.getRevenueSplit = async (req, res, next) => {
   try {
-    const { startDate, endDate } = req.query;
+    const { period = 'all' } = req.query;
+    const dateRange = getDateRange(period);
     
     let dateQuery = {};
-    if (startDate || endDate) {
-      dateQuery.createdAt = {};
-      if (startDate) dateQuery.createdAt.$gte = new Date(startDate);
-      if (endDate) dateQuery.createdAt.$lte = new Date(endDate);
+    if (dateRange.start && dateRange.end) {
+      dateQuery.createdAt = { $gte: dateRange.start, $lt: dateRange.end };
     }
 
     const bills = await Bill.find(dateQuery);
@@ -209,9 +286,16 @@ exports.getRecentPatients = async (req, res, next) => {
 // @access  Private
 exports.getTopServices = async (req, res, next) => {
   try {
-    const { limit = 5 } = req.query;
+    const { limit = 5, period = 'all' } = req.query;
+    const dateRange = getDateRange(period);
+
+    let matchStage = {};
+    if (dateRange.start && dateRange.end) {
+      matchStage = { createdAt: { $gte: dateRange.start, $lt: dateRange.end } };
+    }
 
     const result = await Bill.aggregate([
+      { $match: matchStage },
       { $unwind: '$services' },
       {
         $group: {
@@ -243,9 +327,16 @@ exports.getTopServices = async (req, res, next) => {
 // @access  Private
 exports.getTopMedicines = async (req, res, next) => {
   try {
-    const { limit = 5 } = req.query;
+    const { limit = 5, period = 'all' } = req.query;
+    const dateRange = getDateRange(period);
+
+    let matchStage = {};
+    if (dateRange.start && dateRange.end) {
+      matchStage = { createdAt: { $gte: dateRange.start, $lt: dateRange.end } };
+    }
 
     const result = await Bill.aggregate([
+      { $match: matchStage },
       { $unwind: '$medicines' },
       {
         $group: {
@@ -277,18 +368,36 @@ exports.getTopMedicines = async (req, res, next) => {
 // @access  Private
 exports.getPerformance = async (req, res, next) => {
   try {
-    const today = new Date();
-    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const { period = 'all' } = req.query;
+    const dateRange = getDateRange(period);
 
-    // Total revenue and patients
-    const totalBills = await Bill.find();
-    const totalRevenue = totalBills.reduce((sum, bill) => sum + bill.totalAmount, 0);
+    let dateQuery = {};
+    if (dateRange.start && dateRange.end) {
+      dateQuery.createdAt = { $gte: dateRange.start, $lt: dateRange.end };
+    }
+
+    // Get bills based on period
+    const bills = await Bill.find(dateQuery);
+    const totalRevenue = bills.reduce((sum, bill) => sum + bill.totalAmount, 0);
+
+    // Get patients based on period
+    let patientQuery = {};
+    if (dateRange.start && dateRange.end) {
+      patientQuery = { lastVisit: { $gte: dateRange.start, $lt: dateRange.end } };
+    }
+    const periodPatients = await Patient.countDocuments(patientQuery);
+
+    // Total patients (always all time)
     const totalPatients = await Patient.countDocuments();
 
-    // Average revenue per patient
-    const avgRevenuePerPatient = totalPatients > 0 ? Math.round(totalRevenue / totalPatients) : 0;
+    // Average bill amount
+    const avgBillAmount = bills.length > 0 
+      ? Math.round(totalRevenue / bills.length)
+      : 0;
 
-    // This month's growth
+    // This month's growth (for comparison)
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
 
@@ -306,19 +415,19 @@ exports.getPerformance = async (req, res, next) => {
       ? ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue * 100).toFixed(1)
       : 0;
 
-    // Average bill amount
-    const avgBillAmount = totalBills.length > 0 
-      ? Math.round(totalRevenue / totalBills.length)
-      : 0;
+    // Period-specific data
+    const thisMonthRevenue_display = period === 'month' ? totalRevenue : thisMonthRevenue;
 
     return successResponse(res, {
       totalRevenue,
       totalPatients,
-      avgRevenuePerPatient,
+      periodPatients,
       avgBillAmount,
-      thisMonthRevenue,
+      thisMonthRevenue: thisMonthRevenue_display,
       lastMonthRevenue,
-      growthPercentage: parseFloat(growthPercentage)
+      growthPercentage: parseFloat(growthPercentage),
+      period,
+      billsCount: bills.length
     }, 'Performance metrics retrieved');
   } catch (error) {
     next(error);

@@ -10,7 +10,10 @@ const getToken = () => localStorage.getItem('token');
 export const setToken = (token) => localStorage.setItem('token', token);
 
 // Remove token from localStorage
-export const removeToken = () => localStorage.removeItem('user');
+export const removeToken = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+};
 
 // API Request helper
 const request = async (endpoint, options = {}) => {
@@ -150,11 +153,12 @@ export const analyticsAPI = {
   getSummary: () => request('/analytics/summary'),
   getDailyEarnings: (days = 7) => request(`/analytics/daily-earnings?days=${days}`),
   getMonthlyGrowth: () => request('/analytics/monthly-growth'),
-  getRevenueSplit: () => request('/analytics/revenue-split'),
+  getYearlyGrowth: () => request('/analytics/yearly-growth'),
+  getRevenueSplit: (period = 'all') => request(`/analytics/revenue-split?period=${period}`),
   getRecentPatients: (limit = 5) => request(`/analytics/recent-patients?limit=${limit}`),
-  getTopServices: (limit = 5) => request(`/analytics/top-services?limit=${limit}`),
-  getTopMedicines: (limit = 5) => request(`/analytics/top-medicines?limit=${limit}`),
-  getPerformance: () => request('/analytics/performance'),
+  getTopServices: (limit = 5, period = 'all') => request(`/analytics/top-services?limit=${limit}&period=${period}`),
+  getTopMedicines: (limit = 5, period = 'all') => request(`/analytics/top-medicines?limit=${limit}&period=${period}`),
+  getPerformance: (period = 'all') => request(`/analytics/performance?period=${period}`),
 };
 
 export default {
