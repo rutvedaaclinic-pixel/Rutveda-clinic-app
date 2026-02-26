@@ -145,7 +145,7 @@ exports.createBill = async (req, res, next) => {
       paymentStatus: paymentStatus || 'paid',
       paymentMethod: paymentMethod || 'cash',
       notes,
-      createdBy: req.user._id
+      createdBy: req.user?._id || null
     });
 
     // Update patient's last visit

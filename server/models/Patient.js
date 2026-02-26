@@ -127,7 +127,10 @@ patientSchema.methods.visitedToday = function() {
 
 // Virtual for formatted last visit date
 patientSchema.virtual('formattedLastVisit').get(function() {
-  return new Date(this.lastVisit).toISOString().split('T')[0];
+  if (!this.lastVisit) return '';
+  const date = new Date(this.lastVisit);
+  if (isNaN(date.getTime())) return '';
+  return date.toISOString().split('T')[0];
 });
 
 // Ensure virtuals are included in JSON output

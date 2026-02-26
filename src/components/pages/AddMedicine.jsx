@@ -4,7 +4,7 @@ import Card from '../ui/Card'
 import Button from '../ui/Button'
 import InputField from '../ui/InputField'
 import { medicinesAPI } from '../../services/api'
-import { Upload, Save, X, Package } from 'lucide-react'
+import { Save, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function AddMedicine() {
@@ -22,7 +22,6 @@ export default function AddMedicine() {
 
   const [errors, setErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [imagePreview, setImagePreview] = useState(null)
 
   const categories = [
     { value: 'tablets', label: 'Tablets' },
@@ -33,17 +32,6 @@ export default function AddMedicine() {
     { value: 'drops', label: 'Drops' },
     { value: 'other', label: 'Other' }
   ]
-
-  const handleImageChange = (e) => {
-    const file = e.target.files[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setImagePreview(reader.result)
-      }
-      reader.readAsDataURL(file)
-    }
-  }
 
   const validateForm = () => {
     const newErrors = {}
@@ -86,8 +74,7 @@ export default function AddMedicine() {
         ...formData,
         buyingPrice: parseFloat(formData.buyingPrice),
         sellingPrice: parseFloat(formData.sellingPrice),
-        stock: parseInt(formData.stock),
-        image: imagePreview
+        stock: parseInt(formData.stock)
       })
       
       toast.success('Medicine added successfully!')
@@ -123,53 +110,7 @@ export default function AddMedicine() {
       </div>
 
       {/* Medicine Form */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Image Upload Section */}
-        <Card className="lg:col-span-1">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Medicine Image</h3>
-          
-          <div className="space-y-4">
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition-colors">
-              {imagePreview ? (
-                <div className="relative">
-                  <img 
-                    src={imagePreview} 
-                    alt="Medicine preview" 
-                    className="w-32 h-32 object-cover mx-auto rounded-lg"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setImagePreview(null)}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
-                    <Package className="w-8 h-8 text-gray-400" />
-                  </div>
-                  <div>
-                    <label className="cursor-pointer">
-                      <span className="text-blue-500 hover:text-blue-600 font-medium">Upload image</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageChange}
-                        className="hidden"
-                      />
-                    </label>
-                    <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 5MB</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </Card>
-
-        {/* Medicine Details Section */}
-        <Card className="lg:col-span-2">
+      <Card>
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Medicine Details</h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -291,8 +232,7 @@ export default function AddMedicine() {
               </div>
             </div>
           )}
-        </Card>
-      </div>
+      </Card>
 
       {/* Form Actions */}
       <Card>

@@ -144,7 +144,10 @@ billSchema.pre('save', function(next) {
 
 // Virtual for formatted date
 billSchema.virtual('formattedDate').get(function() {
-  return new Date(this.createdAt).toISOString().split('T')[0];
+  if (!this.createdAt) return '';
+  const date = new Date(this.createdAt);
+  if (isNaN(date.getTime())) return '';
+  return date.toISOString().split('T')[0];
 });
 
 // Method to get bill summary

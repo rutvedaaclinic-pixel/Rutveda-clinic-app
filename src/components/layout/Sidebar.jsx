@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 import { 
   LayoutDashboard, 
   Users, 
@@ -19,6 +20,14 @@ const menuItems = [
 ]
 
 export default function Sidebar({ isOpen, onClose }) {
+  const { logout } = useAuth()
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+  }
+
   return (
     <>
       {/* Mobile overlay */}
@@ -90,7 +99,10 @@ export default function Sidebar({ isOpen, onClose }) {
 
         {/* Bottom Actions */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-100 bg-white">
-          <button className="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors duration-200">
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-red-600 hover:text-white hover:bg-red-600 rounded-lg transition-colors duration-200 border border-red-200"
+          >
             <LogOut className="w-4 h-4 mr-2" />
             Logout
           </button>

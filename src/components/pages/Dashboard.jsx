@@ -257,10 +257,10 @@ export default function Dashboard() {
                   </p>
                 </div>
                 <div className="flex space-x-2">
-                  <Button variant="outline" size="sm" href={`/patients/${patient._id}`}>
+                  <Button variant="outline" size="sm" href={`/patients`}>
                     View
                   </Button>
-                  <Button variant="primary" size="sm" href={`/billing?patient=${patient._id}`}>
+                  <Button variant="primary" size="sm" href={`/create-bill?patientId=${patient._id}`}>
                     Create Bill
                   </Button>
                 </div>

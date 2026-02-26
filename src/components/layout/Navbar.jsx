@@ -2,14 +2,17 @@ import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { 
   Menu, 
-  Bell, 
   User, 
   Search, 
   Plus,
   LogOut,
-  ChevronDown
+  ChevronDown,
+  Users,
+  Package,
+  Settings
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { patientsAPI, medicinesAPI, servicesAPI } from '../../services/api'
 
 // Get current date formatted
 const getCurrentDate = () => {
@@ -19,6 +22,10 @@ const getCurrentDate = () => {
 
 export default function Navbar({ onSidebarToggle }) {
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState({ patients: [], medicines: [], services: [] })
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false)
+  const [searching, setSearching] = useState(false)
+  const searchRef = useRef(null)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef(null)
   const { user, logout, isAuthenticated } = useAuth()
@@ -26,6 +33,76 @@ export default function Navbar({ onSidebarToggle }) {
   
   // Store current date on component mount
   const currentDate = getCurrentDate()
+
+  // Search functionality
+  const handleSearch = async (query) => {
+    if (!query || query.length < 2) {
+      setSearchResults({ patients: [], medicines: [], services: [] })
+      setShowSearchDropdown(false)
+      return
+    }
+
+    setSearching(true)
+    setShowSearchDropdown(true)
+
+    try {
+      const [patientsRes, medicinesRes, servicesRes] = await Promise.all([
+        patientsAPI.getAll(`?search=${query}&limit=5`),
+        medicinesAPI.getAll(`?search=${query}&limit=5`),
+        servicesAPI.getAll(`?search=${query}&limit=5`)
+      ])
+
+      setSearchResults({
+        patients: patientsRes.data || [],
+        medicines: medicinesRes.data || [],
+        services: servicesRes.data || []
+      })
+    } catch (error) {
+      console.error('Search error:', error)
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  // Debounced search
+  useEffect(() => {
+    const debounce = setTimeout(() => {
+      if (searchQuery) {
+        handleSearch(searchQuery)
+      }
+    }, 300)
+
+    return () => clearTimeout(debounce)
+  }, [searchQuery])
+
+  // Close search dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowSearchDropdown(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleResultClick = (type, item) => {
+    setShowSearchDropdown(false)
+    setSearchQuery('')
+    
+    switch (type) {
+      case 'patient':
+        navigate(`/patients`)
+        break
+      case 'medicine':
+        navigate(`/inventory`)
+        break
+      case 'service':
+        navigate(`/services`)
+        break
+    }
+  }
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -65,7 +142,7 @@ export default function Navbar({ onSidebarToggle }) {
         </div>
 
         {/* Center - Search */}
-        <div className="hidden lg:flex flex-1 max-w-lg mx-8">
+        <div className="hidden lg:flex flex-1 max-w-lg mx-8" ref={searchRef}>
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
@@ -73,8 +150,98 @@ export default function Navbar({ onSidebarToggle }) {
               placeholder="Search patients, medicines, services..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => searchQuery.length >= 2 && setShowSearchDropdown(true)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
+            
+            {/* Search Dropdown */}
+            {showSearchDropdown && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 max-h-96 overflow-y-auto z-50">
+                {searching ? (
+                  <div className="p-4 text-center text-gray-500">
+                    <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                    Searching...
+                  </div>
+                ) : (
+                  <>
+                    {/* Patients */}
+                    {searchResults.patients.length > 0 && (
+                      <div className="border-b border-gray-100">
+                        <div className="px-3 py-2 bg-gray-50 text-xs font-semibold text-gray-500 uppercase">
+                          Patients
+                        </div>
+                        {searchResults.patients.map((patient) => (
+                          <button
+                            key={patient._id}
+                            onClick={() => handleResultClick('patient', patient)}
+                            className="w-full flex items-center px-3 py-2 hover:bg-gray-50 text-left"
+                          >
+                            <Users className="w-4 h-4 text-blue-500 mr-3" />
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{patient.name}</p>
+                              <p className="text-xs text-gray-500">{patient.phone} • {patient.gender}, {patient.age}yrs</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Medicines */}
+                    {searchResults.medicines.length > 0 && (
+                      <div className="border-b border-gray-100">
+                        <div className="px-3 py-2 bg-gray-50 text-xs font-semibold text-gray-500 uppercase">
+                          Medicines
+                        </div>
+                        {searchResults.medicines.map((medicine) => (
+                          <button
+                            key={medicine._id}
+                            onClick={() => handleResultClick('medicine', medicine)}
+                            className="w-full flex items-center px-3 py-2 hover:bg-gray-50 text-left"
+                          >
+                            <Package className="w-4 h-4 text-green-500 mr-3" />
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{medicine.name}</p>
+                              <p className="text-xs text-gray-500">₹{medicine.sellingPrice} • Stock: {medicine.stock}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Services */}
+                    {searchResults.services.length > 0 && (
+                      <div className="border-b border-gray-100">
+                        <div className="px-3 py-2 bg-gray-50 text-xs font-semibold text-gray-500 uppercase">
+                          Services
+                        </div>
+                        {searchResults.services.map((service) => (
+                          <button
+                            key={service._id}
+                            onClick={() => handleResultClick('service', service)}
+                            className="w-full flex items-center px-3 py-2 hover:bg-gray-50 text-left"
+                          >
+                            <Settings className="w-4 h-4 text-purple-500 mr-3" />
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{service.name}</p>
+                              <p className="text-xs text-gray-500">₹{service.price}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* No Results */}
+                    {searchResults.patients.length === 0 && 
+                     searchResults.medicines.length === 0 && 
+                     searchResults.services.length === 0 && (
+                      <div className="p-4 text-center text-gray-500">
+                        No results found for "{searchQuery}"
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -88,12 +255,6 @@ export default function Navbar({ onSidebarToggle }) {
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Add Patient</span>
           </Link>
-
-          {/* Notifications */}
-          <button className="p-2 rounded-md hover:bg-gray-100 relative">
-            <Bell className="w-5 h-5 text-gray-600" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-          </button>
 
           {/* User Menu */}
           <div className="relative" ref={dropdownRef}>

@@ -22,6 +22,21 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
+// Safe date formatting helper
+const formatDate = (date) => {
+  if (!date) return 'N/A';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return 'N/A';
+  return d.toLocaleDateString();
+};
+
+const formatTime = (date) => {
+  if (!date) return 'N/A';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return 'N/A';
+  return d.toLocaleTimeString();
+};
+
 export default function Billing() {
   const [loading, setLoading] = useState(true)
   const [bills, setBills] = useState([])
@@ -306,7 +321,7 @@ export default function Billing() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {new Date(bill.createdAt).toLocaleDateString()}
+                    {formatDate(bill.createdAt)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                     <div>Consultation: ₹{bill.consultationFee}</div>
@@ -383,7 +398,7 @@ export default function Billing() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Date</p>
-                  <p className="font-semibold">{new Date(selectedBill.createdAt).toLocaleDateString()}</p>
+                  <p className="font-semibold">{formatDate(selectedBill.createdAt)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Patient Name</p>
@@ -642,8 +657,8 @@ export default function Billing() {
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
               <div>
                 <p style={{ margin: '5px 0' }}><strong>Bill ID:</strong> {selectedBill.billId}</p>
-                <p style={{ margin: '5px 0' }}><strong>Date:</strong> {new Date(selectedBill.createdAt).toLocaleDateString()}</p>
-                <p style={{ margin: '5px 0' }}><strong>Time:</strong> {new Date(selectedBill.createdAt).toLocaleTimeString()}</p>
+                <p style={{ margin: '5px 0' }}><strong>Date:</strong> {formatDate(selectedBill.createdAt)}</p>
+                <p style={{ margin: '5px 0' }}><strong>Time:</strong> {formatTime(selectedBill.createdAt)}</p>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <p style={{ margin: '5px 0' }}><strong>Patient Name:</strong> {selectedBill.patientName}</p>
