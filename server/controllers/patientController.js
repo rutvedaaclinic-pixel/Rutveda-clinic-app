@@ -169,6 +169,62 @@ exports.updateVisit = async (req, res, next) => {
   }
 };
 
+// @desc    Add visit to patient
+// @route   POST /api/patients/:id/visits
+// @access  Private
+exports.addVisit = async (req, res, next) => {
+  try {
+    const { diagnosis, prescription, notes, doctorName } = req.body;
+    const patient = await Patient.findById(req.params.id);
+
+    if (!patient) {
+      return notFoundResponse(res, 'Patient not found');
+    }
+
+    // Add new visit
+    patient.visits.push({
+      date: new Date(),
+      diagnosis,
+      prescription,
+      notes,
+      doctorName
+    });
+
+    // Update last visit and status
+    patient.lastVisit = new Date();
+    patient.status = 'Active';
+
+    await patient.save();
+
+    return successResponse(res, patient, 'Visit added successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get patient with bills
+// @route   GET /api/patients/:id/details
+// @access  Private
+exports.getPatientWithDetails = async (req, res, next) => {
+  try {
+    const patient = await Patient.findById(req.params.id);
+
+    if (!patient) {
+      return notFoundResponse(res, 'Patient not found');
+    }
+
+    // Get bills for this patient
+    const Bill = require('../models/Bill');
+    const bills = await Bill.find({ patient: req.params.id })
+      .sort({ createdAt: -1 })
+      .select('billId totalAmount paymentStatus createdAt consultationFee medicines services');
+
+    return successResponse(res, { patient, bills }, 'Patient details retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Search patients
 // @route   GET /api/patients/search
 // @access  Private

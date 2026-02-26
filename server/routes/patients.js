@@ -9,6 +9,8 @@ const {
   updatePatient,
   deletePatient,
   updateVisit,
+  addVisit,
+  getPatientWithDetails,
   searchPatients,
   getPatientStats
 } = require('../controllers/patientController');
@@ -27,12 +29,17 @@ router.route('/')
   .get(getPatients)
   .post(validatePatient, createPatient);
 
+// Patient details route (must be before /:id to avoid route conflict)
+router.get('/:id/details', validateObjectId('id'), getPatientWithDetails);
+
+// Additional routes for visits
+router.put('/:id/visit', validateObjectId('id'), updateVisit);
+router.post('/:id/visits', validateObjectId('id'), addVisit);
+
+// Patient CRUD by ID (must be after specific routes like /:id/details)
 router.route('/:id')
   .get(validateObjectId('id'), getPatient)
   .put(validateObjectId('id'), validatePatient, updatePatient)
   .delete(validateObjectId('id'), deletePatient);
-
-// Additional routes
-router.put('/:id/visit', validateObjectId('id'), updateVisit);
 
 module.exports = router;

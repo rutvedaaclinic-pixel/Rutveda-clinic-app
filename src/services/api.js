@@ -76,6 +76,7 @@ export const patientsAPI = {
   getAll: (params = '') => request(`/patients${params}`),
   getToday: () => request('/patients/today'),
   getById: (id) => request(`/patients/${id}`),
+  getWithDetails: (id) => request(`/patients/${id}/details`),
   create: (data) => request('/patients', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -87,6 +88,10 @@ export const patientsAPI = {
   delete: (id) => request(`/patients/${id}`, { method: 'DELETE' }),
   search: (q) => request(`/patients/search?q=${q}`),
   getStats: () => request('/patients/stats'),
+  addVisit: (id, data) => request(`/patients/${id}/visits`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
 };
 
 // Medicines API

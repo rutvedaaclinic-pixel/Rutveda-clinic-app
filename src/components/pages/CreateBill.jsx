@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
 import InputField from '../ui/InputField'
@@ -21,6 +21,7 @@ import toast from 'react-hot-toast'
 
 export default function CreateBill() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   
@@ -47,6 +48,27 @@ export default function CreateBill() {
     fetchAvailableServices()
     fetchAvailableMedicines()
   }, [])
+
+  // Handle patient ID from URL params
+  useEffect(() => {
+    const patientId = searchParams.get('patientId')
+    if (patientId) {
+      fetchAndSelectPatient(patientId)
+    }
+  }, [searchParams])
+
+  const fetchAndSelectPatient = async (patientId) => {
+    try {
+      const data = await patientsAPI.getById(patientId)
+      if (data.data) {
+        setSelectedPatient(data.data)
+        setPatientSearch(data.data.name)
+      }
+    } catch (error) {
+      console.error('Error fetching patient:', error)
+      toast.error('Failed to load patient details')
+    }
+  }
 
   // Search patients with debounce
   useEffect(() => {

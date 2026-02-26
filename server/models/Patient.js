@@ -53,6 +53,31 @@ const patientSchema = new mongoose.Schema({
     trim: true,
     maxlength: [2000, 'Medical history cannot exceed 2000 characters']
   },
+  visits: [{
+    date: {
+      type: Date,
+      default: Date.now
+    },
+    diagnosis: {
+      type: String,
+      trim: true,
+      maxlength: [500, 'Diagnosis cannot exceed 500 characters']
+    },
+    prescription: {
+      type: String,
+      trim: true,
+      maxlength: [1000, 'Prescription cannot exceed 1000 characters']
+    },
+    notes: {
+      type: String,
+      trim: true,
+      maxlength: [500, 'Notes cannot exceed 500 characters']
+    },
+    doctorName: {
+      type: String,
+      trim: true
+    }
+  }],
   lastVisit: {
     type: Date,
     default: Date.now
