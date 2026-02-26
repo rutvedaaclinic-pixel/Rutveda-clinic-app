@@ -469,7 +469,7 @@ export default function CreateBill() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
                 <div className="grid grid-cols-2 gap-2">
-                  {['cash', 'upi', 'card', 'other'].map((method) => (
+                  {['cash', 'upi'].map((method) => (
                     <button
                       key={method}
                       type="button"
