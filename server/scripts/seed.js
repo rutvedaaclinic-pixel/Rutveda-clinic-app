@@ -24,11 +24,11 @@ const seedData = async () => {
     console.log('Seeding database...');
 
     // Check if admin user already exists
-    const existingUser = await User.findOne({ email: 'doctor@rutveda.com' });
+    const existingUser = await User.findOne({ email: 'rutveda.clinic@gmail.com' });
     
     if (existingUser) {
       console.log('Doctor user already exists:');
-      console.log('Email: doctor@rutveda.com');
+      console.log('Email: rutveda.clinic@gmail.com');
       console.log('Password: admin123');
       process.exit(0);
     }
@@ -36,7 +36,7 @@ const seedData = async () => {
     // Create default doctor/admin user
     const doctor = await User.create({
       name: 'Dr. Mihir Thakor',
-      email: 'doctor@rutveda.com',
+      email: 'rutveda.clinic@gmail.com',
       password: 'admin123',
       role: 'admin',
       phone: '+919876543210',
@@ -46,7 +46,7 @@ const seedData = async () => {
     console.log('\n✅ Doctor user created successfully!');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('📋 Login Credentials:');
-    console.log('   Email: doctor@rutveda.com');
+    console.log('   Email: rutveda.clinic@gmail.com');
     console.log('   Password: admin123');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
     console.log('User details:', {

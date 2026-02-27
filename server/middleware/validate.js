@@ -223,8 +223,7 @@ exports.validateLogin = [
   body('email')
     .trim()
     .notEmpty().withMessage('Email is required')
-    .isEmail().withMessage('Please enter a valid email')
-    .normalizeEmail(),
+    .isEmail().withMessage('Please enter a valid email'),
   
   body('password')
     .notEmpty().withMessage('Password is required'),

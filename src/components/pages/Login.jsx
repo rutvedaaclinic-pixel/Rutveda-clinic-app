@@ -133,7 +133,7 @@ export default function Login() {
           {/* Default Credentials Info */}
           <div className="mt-6 p-4 bg-blue-50 rounded-lg">
             <p className="text-sm text-blue-800 font-medium mb-2">Default Credentials:</p>
-            <p className="text-xs text-blue-600">Email: doctor@rutveda.com</p>
+            <p className="text-xs text-blue-600">Email: rutveda.clinic@gmail.com</p>
             <p className="text-xs text-blue-600">Password: admin123</p>
           </div>
         </div>

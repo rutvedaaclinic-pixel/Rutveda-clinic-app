@@ -24,7 +24,7 @@ const resetPassword = async () => {
     console.log('Resetting password...');
 
     // Find the user
-    const user = await User.findOne({ email: 'doctor@rutveda.com' });
+    const user = await User.findOne({ email: 'rutveda.clinic@gmail.com' });
     
     if (!user) {
       console.log('❌ User not found! Run "npm run seed" to create the user first.');
@@ -38,7 +38,7 @@ const resetPassword = async () => {
     console.log('\n✅ Password reset successfully!');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('📋 New Login Credentials:');
-    console.log('   Email: doctor@rutveda.com');
+    console.log('   Email: rutveda.clinic@gmail.com');
     console.log('   Password: admin123');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
