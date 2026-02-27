@@ -3,6 +3,7 @@ import Card from '../ui/Card'
 import ChartCard from '../ui/ChartCard'
 import Button from '../ui/Button'
 import { analyticsAPI, patientsAPI } from '../../services/api'
+import { formatDate } from '../../utils/dateUtils'
 import { 
   Users, 
   DollarSign, 
@@ -253,7 +254,7 @@ export default function Dashboard() {
                   <p className="text-sm font-medium text-gray-900">{patient.age} years</p>
                   <p className="text-xs text-gray-500 flex items-center justify-end">
                     <Calendar className="w-3 h-3 mr-1" />
-                    {patient.lastVisit ? new Date(patient.lastVisit).toLocaleDateString() : 'N/A'}
+                    {formatDate(patient.lastVisit)}
                   </p>
                 </div>
                 <div className="flex space-x-2">

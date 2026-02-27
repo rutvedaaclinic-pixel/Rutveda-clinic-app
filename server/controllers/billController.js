@@ -1,8 +1,47 @@
+const mongoose = require('mongoose');
 const Bill = require('../models/Bill');
 const Patient = require('../models/Patient');
 const Medicine = require('../models/Medicine');
 const Service = require('../models/Service');
 const { successResponse, errorResponse, paginatedResponse, notFoundResponse } = require('../utils/response');
+const { isValidDate, safeDate } = require('../utils/dateUtils');
+
+/**
+ * Validate MongoDB ObjectId
+ * @param {string} id - The ID to validate
+ * @returns {boolean} True if valid, false otherwise
+ */
+const isValidObjectId = (id) => {
+  return id && mongoose.Types.ObjectId.isValid(id);
+};
+
+/**
+ * Safe date filter builder
+ * @param {string} startDate - Start date string
+ * @param {string} endDate - End date string
+ * @returns {object|null} Date filter object or null
+ */
+const buildDateFilter = (startDate, endDate) => {
+  const dateFilter = {};
+  
+  if (startDate) {
+    const start = safeDate(startDate);
+    if (start) {
+      dateFilter.$gte = start;
+    }
+  }
+  
+  if (endDate) {
+    const end = safeDate(endDate);
+    if (end) {
+      // Set end date to end of day
+      end.setHours(23, 59, 59, 999);
+      dateFilter.$lte = end;
+    }
+  }
+  
+  return Object.keys(dateFilter).length > 0 ? dateFilter : null;
+};
 
 // @desc    Get all bills
 // @route   GET /api/bills
@@ -22,11 +61,10 @@ exports.getBills = async (req, res, next) => {
       ];
     }
 
-    // Date range filter
-    if (startDate || endDate) {
-      query.createdAt = {};
-      if (startDate) query.createdAt.$gte = new Date(startDate);
-      if (endDate) query.createdAt.$lte = new Date(endDate);
+    // Date range filter - safely handle dates
+    const dateFilter = buildDateFilter(startDate, endDate);
+    if (dateFilter) {
+      query.createdAt = dateFilter;
     }
 
     // Payment status filter
@@ -47,7 +85,8 @@ exports.getBills = async (req, res, next) => {
 
     return paginatedResponse(res, bills, parseInt(page), parseInt(limit), total, 'Bills retrieved successfully');
   } catch (error) {
-    next(error);
+    console.error('Error in getBills:', error.message);
+    return errorResponse(res, 'Failed to retrieve bills', 500);
   }
 };
 
@@ -56,7 +95,14 @@ exports.getBills = async (req, res, next) => {
 // @access  Private
 exports.getBill = async (req, res, next) => {
   try {
-    const bill = await Bill.findById(req.params.id)
+    const { id } = req.params;
+
+    // Validate ObjectId
+    if (!isValidObjectId(id)) {
+      return errorResponse(res, 'Invalid bill ID format', 400);
+    }
+
+    const bill = await Bill.findById(id)
       .populate('patient', 'patientId name phone age gender')
       .populate('medicines.medicine', 'medicineId name')
       .populate('services.service', 'serviceId name')
@@ -68,7 +114,14 @@ exports.getBill = async (req, res, next) => {
 
     return successResponse(res, bill, 'Bill retrieved successfully');
   } catch (error) {
-    next(error);
+    console.error('Error in getBill:', error.message);
+    
+    // Handle CastError (invalid ObjectId that passed validation)
+    if (error.name === 'CastError') {
+      return errorResponse(res, 'Invalid bill ID format', 400);
+    }
+    
+    return errorResponse(res, 'Failed to retrieve bill', 500);
   }
 };
 
@@ -168,9 +221,15 @@ exports.createBill = async (req, res, next) => {
 // @access  Private
 exports.updateBill = async (req, res, next) => {
   try {
+    const { id } = req.params;
     const { paymentStatus, paymentMethod, notes } = req.body;
 
-    const bill = await Bill.findById(req.params.id);
+    // Validate ObjectId
+    if (!isValidObjectId(id)) {
+      return errorResponse(res, 'Invalid bill ID format', 400);
+    }
+
+    const bill = await Bill.findById(id);
 
     if (!bill) {
       return notFoundResponse(res, 'Bill not found');
@@ -189,7 +248,13 @@ exports.updateBill = async (req, res, next) => {
 
     return successResponse(res, updatedBill, 'Bill updated successfully');
   } catch (error) {
-    next(error);
+    console.error('Error in updateBill:', error.message);
+    
+    if (error.name === 'CastError') {
+      return errorResponse(res, 'Invalid bill ID format', 400);
+    }
+    
+    return errorResponse(res, 'Failed to update bill', 500);
   }
 };
 
@@ -198,7 +263,14 @@ exports.updateBill = async (req, res, next) => {
 // @access  Private (Admin only)
 exports.deleteBill = async (req, res, next) => {
   try {
-    const bill = await Bill.findById(req.params.id);
+    const { id } = req.params;
+
+    // Validate ObjectId
+    if (!isValidObjectId(id)) {
+      return errorResponse(res, 'Invalid bill ID format', 400);
+    }
+
+    const bill = await Bill.findById(id);
 
     if (!bill) {
       return notFoundResponse(res, 'Bill not found');
@@ -206,10 +278,12 @@ exports.deleteBill = async (req, res, next) => {
 
     // Restore medicine stock
     for (const item of bill.medicines) {
-      const medicine = await Medicine.findById(item.medicine);
-      if (medicine) {
-        medicine.stock += item.quantity;
-        await medicine.save();
+      if (isValidObjectId(item.medicine)) {
+        const medicine = await Medicine.findById(item.medicine);
+        if (medicine) {
+          medicine.stock += item.quantity;
+          await medicine.save();
+        }
       }
     }
 
@@ -217,7 +291,13 @@ exports.deleteBill = async (req, res, next) => {
 
     return successResponse(res, null, 'Bill deleted successfully');
   } catch (error) {
-    next(error);
+    console.error('Error in deleteBill:', error.message);
+    
+    if (error.name === 'CastError') {
+      return errorResponse(res, 'Invalid bill ID format', 400);
+    }
+    
+    return errorResponse(res, 'Failed to delete bill', 500);
   }
 };
 

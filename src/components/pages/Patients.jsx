@@ -5,6 +5,7 @@ import Button from '../ui/Button'
 import InputField from '../ui/InputField'
 import Card from '../ui/Card'
 import { patientsAPI } from '../../services/api'
+import { formatDate, formatDateTime } from '../../utils/dateUtils'
 import { 
   Search, 
   Plus, 
@@ -341,7 +342,7 @@ export default function Patients() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <div className="flex items-center">
                       <Calendar className="w-4 h-4 text-gray-400 mr-2" />
-                      {patient.lastVisit ? new Date(patient.lastVisit).toLocaleDateString() : 'N/A'}
+                      {formatDate(patient.lastVisit)}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -478,7 +479,7 @@ export default function Patients() {
                   )}
                   <div className="flex items-center space-x-2">
                     <Clock className="w-4 h-4 text-gray-400" />
-                    <span>Last Visit: {selectedPatient.lastVisit ? new Date(selectedPatient.lastVisit).toLocaleDateString() : 'N/A'}</span>
+                    <span>Last Visit: {formatDate(selectedPatient.lastVisit)}</span>
                   </div>
                   <div>
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedPatient.status)}`}>
@@ -508,7 +509,7 @@ export default function Patients() {
                       <div key={idx} className="p-4 bg-gray-50 rounded-lg">
                         <div className="flex justify-between items-start mb-2">
                           <span className="text-sm text-gray-500">
-                            {new Date(visit.date).toLocaleDateString()} at {new Date(visit.date).toLocaleTimeString()}
+                            {formatDateTime(visit.date)}
                           </span>
                           {visit.doctorName && (
                             <span className="text-sm text-gray-500">Dr. {visit.doctorName}</span>
@@ -547,7 +548,7 @@ export default function Patients() {
                         {patientBills.map((bill, idx) => (
                           <tr key={idx} className="border-b">
                             <td className="px-4 py-2">{bill.billId}</td>
-                            <td className="px-4 py-2">{new Date(bill.createdAt).toLocaleDateString()}</td>
+                            <td className="px-4 py-2">{formatDate(bill.createdAt)}</td>
                             <td className="px-4 py-2 text-right">₹{bill.totalAmount}</td>
                             <td className="px-4 py-2 text-center">
                               <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${

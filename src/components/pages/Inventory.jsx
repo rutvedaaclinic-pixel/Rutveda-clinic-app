@@ -4,6 +4,7 @@ import Button from '../ui/Button'
 import InputField from '../ui/InputField'
 import Table from '../ui/Table'
 import { medicinesAPI } from '../../services/api'
+import { formatDate } from '../../utils/dateUtils'
 import { 
   Search, 
   Plus, 
@@ -334,7 +335,7 @@ export default function Inventory() {
                       ₹{medicine.sellingPrice}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {new Date(medicine.expiryDate).toLocaleDateString()}
+                      {formatDate(medicine.expiryDate)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${status.color}`}>

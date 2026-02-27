@@ -2,14 +2,29 @@
  * Business Logic Calculations
  */
 
+// Safe date helper
+const safeDate = (date) => {
+  if (!date) return null;
+  try {
+    const d = new Date(date);
+    return isNaN(d.getTime()) ? null : d;
+  } catch {
+    return null;
+  }
+};
+
 // Calculate medicine status based on stock and expiry
 exports.calculateMedicineStatus = (stock, expiryDate, minStockLevel = 10) => {
   const now = new Date();
   const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-  const expiry = new Date(expiryDate);
+  const expiry = safeDate(expiryDate);
 
   if (stock === 0) {
     return 'out-of-stock';
+  }
+  
+  if (!expiry) {
+    return 'in-stock'; // Can't determine expiry, default to in-stock
   }
   
   if (expiry <= thirtyDaysFromNow) {
@@ -151,15 +166,20 @@ exports.formatCurrency = (amount) => {
   }).format(amount);
 };
 
-// Format date
+// Format date safely
 exports.formatDate = (date) => {
-  return new Date(date).toISOString().split('T')[0];
+  const d = safeDate(date);
+  if (!d) return null;
+  return d.toISOString().split('T')[0];
 };
 
-// Get days difference
+// Get days difference safely
 exports.getDaysDifference = (date1, date2) => {
-  const d1 = new Date(date1);
-  const d2 = new Date(date2);
+  const d1 = safeDate(date1);
+  const d2 = safeDate(date2);
+  
+  if (!d1 || !d2) return 0;
+  
   const diffTime = Math.abs(d2 - d1);
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };

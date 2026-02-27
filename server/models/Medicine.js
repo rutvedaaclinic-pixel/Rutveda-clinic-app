@@ -71,8 +71,7 @@ const medicineSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Indexes for faster queries
-medicineSchema.index({ medicineId: 1 });
+// Indexes for faster queries (medicineId already indexed by unique: true)
 medicineSchema.index({ name: 'text' });
 medicineSchema.index({ status: 1 });
 medicineSchema.index({ expiryDate: 1 });
@@ -119,20 +118,11 @@ medicineSchema.virtual('profitPerUnit').get(function() {
   return this.sellingPrice - this.buyingPrice;
 });
 
-// Virtual for formatted expiry date
-medicineSchema.virtual('formattedExpiry').get(function() {
-  return new Date(this.expiryDate).toISOString().split('T')[0];
-});
-
 // Method to check if medicine is expiring within days
 medicineSchema.methods.isExpiringWithin = function(days) {
   const targetDate = new Date();
   targetDate.setDate(targetDate.getDate() + days);
   return this.expiryDate <= targetDate;
 };
-
-// Ensure virtuals are included in JSON output
-medicineSchema.set('toJSON', { virtuals: true });
-medicineSchema.set('toObject', { virtuals: true });
 
 module.exports = mongoose.model('Medicine', medicineSchema);

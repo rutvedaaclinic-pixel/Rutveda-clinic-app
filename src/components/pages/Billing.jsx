@@ -4,6 +4,7 @@ import Button from '../ui/Button'
 import InputField from '../ui/InputField'
 import Table from '../ui/Table'
 import { patientsAPI, medicinesAPI, servicesAPI, billsAPI } from '../../services/api'
+import { formatDate, formatTime } from '../../utils/dateUtils'
 import { 
   Search, 
   Plus, 
@@ -21,21 +22,6 @@ import {
   Pill
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-
-// Safe date formatting helper
-const formatDate = (date) => {
-  if (!date) return 'N/A';
-  const d = new Date(date);
-  if (isNaN(d.getTime())) return 'N/A';
-  return d.toLocaleDateString();
-};
-
-const formatTime = (date) => {
-  if (!date) return 'N/A';
-  const d = new Date(date);
-  if (isNaN(d.getTime())) return 'N/A';
-  return d.toLocaleTimeString();
-};
 
 export default function Billing() {
   const [loading, setLoading] = useState(true)

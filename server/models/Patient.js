@@ -96,8 +96,7 @@ const patientSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Indexes for faster queries
-patientSchema.index({ patientId: 1 });
+// Indexes for faster queries (patientId already indexed by unique: true)
 patientSchema.index({ phone: 1 });
 patientSchema.index({ name: 'text' });
 patientSchema.index({ lastVisit: -1 });
@@ -118,23 +117,16 @@ patientSchema.statics.generatePatientId = async function() {
 
 // Method to check if patient visited today
 patientSchema.methods.visitedToday = function() {
+  if (!this.lastVisit) return false;
+  
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  
   const lastVisit = new Date(this.lastVisit);
+  if (isNaN(lastVisit.getTime())) return false;
+  
   lastVisit.setHours(0, 0, 0, 0);
   return today.getTime() === lastVisit.getTime();
 };
-
-// Virtual for formatted last visit date
-patientSchema.virtual('formattedLastVisit').get(function() {
-  if (!this.lastVisit) return '';
-  const date = new Date(this.lastVisit);
-  if (isNaN(date.getTime())) return '';
-  return date.toISOString().split('T')[0];
-});
-
-// Ensure virtuals are included in JSON output
-patientSchema.set('toJSON', { virtuals: true });
-patientSchema.set('toObject', { virtuals: true });
 
 module.exports = mongoose.model('Patient', patientSchema);

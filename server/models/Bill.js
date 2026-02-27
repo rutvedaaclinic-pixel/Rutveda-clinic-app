@@ -109,8 +109,7 @@ const billSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Indexes for faster queries
-billSchema.index({ billId: 1 });
+// Indexes for faster queries (billId already indexed by unique: true)
 billSchema.index({ patient: 1 });
 billSchema.index({ createdAt: -1 });
 billSchema.index({ paymentStatus: 1 });
@@ -142,14 +141,6 @@ billSchema.pre('save', function(next) {
   next();
 });
 
-// Virtual for formatted date
-billSchema.virtual('formattedDate').get(function() {
-  if (!this.createdAt) return '';
-  const date = new Date(this.createdAt);
-  if (isNaN(date.getTime())) return '';
-  return date.toISOString().split('T')[0];
-});
-
 // Method to get bill summary
 billSchema.methods.getSummary = function() {
   return {
@@ -157,12 +148,8 @@ billSchema.methods.getSummary = function() {
     patientName: this.patientName,
     totalAmount: this.totalAmount,
     paymentStatus: this.paymentStatus,
-    date: this.formattedDate
+    date: this.createdAt || null
   };
 };
-
-// Ensure virtuals are included in JSON output
-billSchema.set('toJSON', { virtuals: true });
-billSchema.set('toObject', { virtuals: true });
 
 module.exports = mongoose.model('Bill', billSchema);
