@@ -1,7 +1,7 @@
 import { toast } from 'react-hot-toast';
 
-// API Base URL
-const API_URL = 'http://localhost:5001/api';
+// API Base URL - Use environment variable for production, localhost for development
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 // Get token from localStorage
 const getToken = () => localStorage.getItem('token');
